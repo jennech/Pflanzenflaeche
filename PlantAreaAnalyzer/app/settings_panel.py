@@ -10,8 +10,8 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from analysis.green_segmentation import AnalysisSettings
-from analysis.green_segmentation import HSVThresholds
+from analysis.settings import AnalysisSettings
+from analysis.settings import HSVThresholds
 
 
 class SettingsPanel(QGroupBox):

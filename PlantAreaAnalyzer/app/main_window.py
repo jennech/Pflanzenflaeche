@@ -15,7 +15,6 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from analysis.green_segmentation import analyze_green_area
 from app.image_viewer import ImageViewer
 from app.results_table import ResultsTable
 from app.settings_panel import SettingsPanel
@@ -74,6 +73,8 @@ class MainWindow(QMainWindow):
             return
 
         try:
+            from analysis.green_segmentation import analyze_green_area
+
             result = analyze_green_area(
                 self.current_image_path,
                 settings=self.settings_panel.analysis_settings(),
