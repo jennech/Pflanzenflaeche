@@ -43,6 +43,7 @@ class ImageViewer(QGraphicsView):
         self._circle_visible = False
         self._manual_circle_enabled = False
         self._drag_start: Optional[QPointF] = None
+        self._pending_circle_center: Optional[QPointF] = None
         self._show_placeholder()
 
     def set_image(self, image: QImage) -> None:
@@ -101,11 +102,15 @@ class ImageViewer(QGraphicsView):
 
     def set_manual_circle_enabled(self, enabled: bool) -> None:
         self._manual_circle_enabled = enabled
+        self._drag_start = None
+        self._pending_circle_center = None
         self.setDragMode(
             QGraphicsView.NoDrag if enabled else QGraphicsView.ScrollHandDrag
         )
         if enabled:
-            self.setToolTip("Kreis aufziehen: Mittelpunkt und Radius der Petrischale setzen")
+            self.setToolTip(
+                "Trackpad: 1. Tap Mitte | 2. Tap Rand | Alternativ: Kreis ziehen"
+            )
         else:
             self.setToolTip(
                 "Mausrad: zoomen | Ziehen: Ausschnitt verschieben | Doppelklick: anpassen"
@@ -134,10 +139,6 @@ class ImageViewer(QGraphicsView):
     def mousePressEvent(self, event) -> None:  # type: ignore[override]
         if self._manual_circle_enabled and self._pixmap:
             self._drag_start = self.mapToScene(event.position().toPoint())
-            self.set_petri_circle(
-                (int(self._drag_start.x()), int(self._drag_start.y()), 1),
-                True,
-            )
             return
         super().mousePressEvent(event)
 
@@ -155,12 +156,31 @@ class ImageViewer(QGraphicsView):
     def mouseReleaseEvent(self, event) -> None:  # type: ignore[override]
         if self._manual_circle_enabled and self._drag_start is not None:
             current = self.mapToScene(event.position().toPoint())
-            radius = max(1, int(round(distance_between(self._drag_start, current))))
-            circle = (
-                int(self._drag_start.x()),
-                int(self._drag_start.y()),
-                radius,
-            )
+            dragged_radius = int(round(distance_between(self._drag_start, current)))
+            if dragged_radius <= 3:
+                if self._pending_circle_center is None:
+                    self._pending_circle_center = current
+                    self.set_petri_circle((int(current.x()), int(current.y()), 2), True)
+                    self._drag_start = None
+                    return
+
+                radius = max(
+                    1,
+                    int(round(distance_between(self._pending_circle_center, current))),
+                )
+                circle = (
+                    int(self._pending_circle_center.x()),
+                    int(self._pending_circle_center.y()),
+                    radius,
+                )
+                self._pending_circle_center = None
+            else:
+                circle = (
+                    int(self._drag_start.x()),
+                    int(self._drag_start.y()),
+                    max(1, dragged_radius),
+                )
+
             self._drag_start = None
             self.set_petri_circle(circle, True)
             self.circle_selected.emit(circle)
