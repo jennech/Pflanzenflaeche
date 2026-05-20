@@ -35,7 +35,7 @@ def analyze_green_area(
 
     petri_circle = detect_petri_circle(bgr_image)
     hsv_image = cv2.cvtColor(bgr_image, cv2.COLOR_BGR2HSV)
-    mask = cv2.inRange(
+    hsv_mask = cv2.inRange(
         hsv_image,
         settings.thresholds.lower_bound(),
         settings.thresholds.upper_bound(),
@@ -45,7 +45,13 @@ def analyze_green_area(
         bgr_image,
         settings.green_dominance_margin,
     )
-    mask = cv2.bitwise_and(mask, dominance_mask)
+    strict_mask = cv2.bitwise_and(hsv_mask, dominance_mask)
+    index_mask = build_green_index_mask(
+        bgr_image,
+        hsv_image,
+        settings,
+    )
+    mask = cv2.bitwise_or(strict_mask, index_mask)
 
     dish_mask = build_petri_mask(
         mask.shape,
@@ -92,6 +98,35 @@ def build_green_dominance_mask(
         & (green - blue >= min_margin)
     )
     return (green_dominates.astype(np.uint8)) * 255
+
+
+def build_green_index_mask(
+    bgr_image: np.ndarray,
+    hsv_image: np.ndarray,
+    settings: AnalysisSettings,
+) -> np.ndarray:
+    """Detect dark or desaturated leaves with an Excess Green color index."""
+
+    blue, green, red = cv2.split(bgr_image.astype(np.int16))
+    excess_green = (2 * green) - red - blue
+    green_index_mask = excess_green >= settings.green_index_min
+
+    h_min = max(0, settings.thresholds.h_min - 18)
+    h_max = min(179, settings.thresholds.h_max + 18)
+    s_min = max(10, settings.thresholds.s_min - 45)
+    v_min = max(10, settings.thresholds.v_min - 25)
+
+    hue = hsv_image[:, :, 0]
+    saturation = hsv_image[:, :, 1]
+    value = hsv_image[:, :, 2]
+    relaxed_hsv_mask = (
+        (hue >= h_min)
+        & (hue <= h_max)
+        & (saturation >= s_min)
+        & (value >= v_min)
+    )
+
+    return ((green_index_mask & relaxed_hsv_mask).astype(np.uint8)) * 255
 
 
 def filter_small_components(mask: np.ndarray, min_area_px: int) -> np.ndarray:

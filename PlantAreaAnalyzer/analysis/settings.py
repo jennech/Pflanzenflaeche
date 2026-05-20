@@ -27,5 +27,6 @@ class AnalysisSettings:
     thresholds: HSVThresholds = field(default_factory=HSVThresholds)
     min_object_area_px: int = 120
     green_dominance_margin: int = 12
+    green_index_min: int = 8
     inner_dish_factor: float = 0.90
     morphology_kernel_size: int = 3
