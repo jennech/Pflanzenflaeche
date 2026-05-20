@@ -27,6 +27,7 @@ class HSVThresholds:
 class AnalysisSettings:
     thresholds: HSVThresholds = field(default_factory=HSVThresholds)
     min_object_area_px: int = 120
+    max_object_area_px: int = 50000
     green_dominance_margin: int = 12
     green_index_min: int = 8
     pale_leaf_expansion_px: int = 12

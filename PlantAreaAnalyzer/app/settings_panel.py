@@ -35,10 +35,11 @@ class SettingsPanel(QGroupBox):
         self._add_slider(slider_grid, "V min", "v_min", 0, 255, 35, 4)
         self._add_slider(slider_grid, "V max", "v_max", 0, 255, 255, 5)
         self._add_slider(slider_grid, "Min Flaeche", "min_object_area_px", 0, 2500, 120, 6)
-        self._add_slider(slider_grid, "Gruen-Abstand", "green_dominance_margin", 0, 80, 12, 7)
-        self._add_slider(slider_grid, "Gruen-Index", "green_index_min", -30, 80, 8, 8)
-        self._add_slider(slider_grid, "Blass-Erweit.", "pale_leaf_expansion_px", 0, 45, 12, 9)
-        self._add_slider(slider_grid, "Innenradius %", "inner_dish_percent", 75, 100, 90, 10)
+        self._add_slider(slider_grid, "Max Flaeche", "max_object_area_px", 0, 120000, 50000, 7)
+        self._add_slider(slider_grid, "Gruen-Abstand", "green_dominance_margin", 0, 80, 12, 8)
+        self._add_slider(slider_grid, "Gruen-Index", "green_index_min", -30, 80, 8, 9)
+        self._add_slider(slider_grid, "Blass-Erweit.", "pale_leaf_expansion_px", 0, 45, 12, 10)
+        self._add_slider(slider_grid, "Innenradius %", "inner_dish_percent", 75, 100, 90, 11)
 
         reset_button = QPushButton("Standardwerte")
         reset_button.clicked.connect(self.reset_defaults)
@@ -56,6 +57,7 @@ class SettingsPanel(QGroupBox):
         return AnalysisSettings(
             thresholds=self.thresholds(),
             min_object_area_px=self._value("min_object_area_px"),
+            max_object_area_px=self._value("max_object_area_px"),
             green_dominance_margin=self._value("green_dominance_margin"),
             green_index_min=self._value("green_index_min"),
             pale_leaf_expansion_px=self._value("pale_leaf_expansion_px"),
@@ -86,6 +88,7 @@ class SettingsPanel(QGroupBox):
             "v_min": defaults.v_min,
             "v_max": defaults.v_max,
             "min_object_area_px": 120,
+            "max_object_area_px": 50000,
             "green_dominance_margin": 12,
             "green_index_min": 8,
             "pale_leaf_expansion_px": 12,

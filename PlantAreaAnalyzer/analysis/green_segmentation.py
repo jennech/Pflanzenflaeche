@@ -76,9 +76,10 @@ def analyze_green_area(
     kernel = np.ones((kernel_size, kernel_size), dtype=np.uint8)
     cleaned_mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
     cleaned_mask = cv2.morphologyEx(cleaned_mask, cv2.MORPH_CLOSE, kernel)
-    cleaned_mask = filter_small_components(
+    cleaned_mask = filter_components_by_area(
         cleaned_mask,
         min_area_px=settings.min_object_area_px,
+        max_area_px=settings.max_object_area_px,
     )
 
     calibration = calibrate_from_petri_diameter_px(
@@ -209,19 +210,59 @@ def build_pale_leaf_expansion_mask(
         & (green >= blue - 20)
     )
     candidate = (faint_green_or_pale | pale_low_saturation)
-    return ((candidate & (nearby_seed > 0)).astype(np.uint8)) * 255
+    pale_mask = ((candidate & (nearby_seed > 0)).astype(np.uint8)) * 255
+    return suppress_root_like_components(pale_mask)
 
 
-def filter_small_components(mask: np.ndarray, min_area_px: int) -> np.ndarray:
-    """Remove tiny green islands that are usually noise or color fringes."""
+def suppress_root_like_components(mask: np.ndarray) -> np.ndarray:
+    """Remove thin, elongated pale structures that are likely roots."""
 
     num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(mask, 8)
     filtered = np.zeros_like(mask)
 
     for label in range(1, num_labels):
         area = stats[label, cv2.CC_STAT_AREA]
-        if area >= min_area_px:
-            filtered[labels == label] = 255
+        width = stats[label, cv2.CC_STAT_WIDTH]
+        height = stats[label, cv2.CC_STAT_HEIGHT]
+        short_side = max(1, min(width, height))
+        long_side = max(width, height)
+        aspect_ratio = long_side / short_side
+        fill_ratio = area / max(1, width * height)
+
+        if aspect_ratio >= 4.5 and fill_ratio <= 0.45:
+            continue
+        if short_side <= 2 and long_side >= 8:
+            continue
+
+        filtered[labels == label] = 255
+
+    return filtered
+
+
+def filter_small_components(mask: np.ndarray, min_area_px: int) -> np.ndarray:
+    """Remove tiny green islands that are usually noise or color fringes."""
+
+    return filter_components_by_area(mask, min_area_px=min_area_px)
+
+
+def filter_components_by_area(
+    mask: np.ndarray,
+    min_area_px: int,
+    max_area_px: int = 0,
+) -> np.ndarray:
+    """Remove implausibly small noise and optionally huge merged artifacts."""
+
+    num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(mask, 8)
+    filtered = np.zeros_like(mask)
+
+    for label in range(1, num_labels):
+        area = stats[label, cv2.CC_STAT_AREA]
+        if area < min_area_px:
+            continue
+        if max_area_px > 0 and area > max_area_px:
+            continue
+
+        filtered[labels == label] = 255
 
     return filtered
 
