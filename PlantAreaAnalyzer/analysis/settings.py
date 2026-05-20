@@ -29,6 +29,7 @@ class AnalysisSettings:
     min_object_area_px: int = 120
     green_dominance_margin: int = 12
     green_index_min: int = 8
+    pale_leaf_expansion_px: int = 12
     inner_dish_factor: float = 0.90
     morphology_kernel_size: int = 3
     manual_petri_circle: Optional[tuple[int, int, int]] = None

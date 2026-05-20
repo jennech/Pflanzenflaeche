@@ -64,6 +64,13 @@ def analyze_green_area(
         shrink_factor=settings.inner_dish_factor,
     )
     mask = cv2.bitwise_and(mask, dish_mask)
+    pale_leaf_mask = build_pale_leaf_expansion_mask(
+        bgr_image,
+        hsv_image,
+        mask,
+        settings.pale_leaf_expansion_px,
+    )
+    mask = cv2.bitwise_or(mask, cv2.bitwise_and(pale_leaf_mask, dish_mask))
 
     kernel_size = max(1, settings.morphology_kernel_size)
     kernel = np.ones((kernel_size, kernel_size), dtype=np.uint8)
@@ -154,6 +161,55 @@ def build_green_index_mask(
             & relaxed_hsv_mask
         ).astype(np.uint8)
     ) * 255
+
+
+def build_pale_leaf_expansion_mask(
+    bgr_image: np.ndarray,
+    hsv_image: np.ndarray,
+    seed_mask: np.ndarray,
+    expansion_px: int,
+) -> np.ndarray:
+    """Add pale tissue only near already detected green plant pixels.
+
+    White or chlorotic leaves are ambiguous in petri images, because agar,
+    reflections, and medium can be similarly bright. Restricting detection to
+    a small neighborhood around green seeds avoids turning the whole dish into
+    plant area while recovering pale leaf margins.
+    """
+
+    if expansion_px <= 0 or not np.any(seed_mask):
+        return np.zeros_like(seed_mask)
+
+    kernel_size = (expansion_px * 2) + 1
+    kernel = cv2.getStructuringElement(
+        cv2.MORPH_ELLIPSE,
+        (kernel_size, kernel_size),
+    )
+    nearby_seed = cv2.dilate(seed_mask, kernel)
+
+    blue, green, red = cv2.split(bgr_image.astype(np.int16))
+    hue = hsv_image[:, :, 0]
+    saturation = hsv_image[:, :, 1]
+    value = hsv_image[:, :, 2]
+
+    faint_green_or_pale = (
+        (green >= red - 12)
+        & (green >= blue - 12)
+        & (hue >= 25)
+        & (hue <= 105)
+        & (saturation <= 115)
+        & (value >= 45)
+        & (value <= 235)
+    )
+    pale_low_saturation = (
+        (saturation <= 55)
+        & (value >= 80)
+        & (value <= 220)
+        & (green >= red - 20)
+        & (green >= blue - 20)
+    )
+    candidate = (faint_green_or_pale | pale_low_saturation)
+    return ((candidate & (nearby_seed > 0)).astype(np.uint8)) * 255
 
 
 def filter_small_components(mask: np.ndarray, min_area_px: int) -> np.ndarray:

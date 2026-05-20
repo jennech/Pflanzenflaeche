@@ -37,7 +37,8 @@ class SettingsPanel(QGroupBox):
         self._add_slider(slider_grid, "Min Flaeche", "min_object_area_px", 0, 2500, 120, 6)
         self._add_slider(slider_grid, "Gruen-Abstand", "green_dominance_margin", 0, 80, 12, 7)
         self._add_slider(slider_grid, "Gruen-Index", "green_index_min", -30, 80, 8, 8)
-        self._add_slider(slider_grid, "Innenradius %", "inner_dish_percent", 75, 100, 90, 9)
+        self._add_slider(slider_grid, "Blass-Erweit.", "pale_leaf_expansion_px", 0, 45, 12, 9)
+        self._add_slider(slider_grid, "Innenradius %", "inner_dish_percent", 75, 100, 90, 10)
 
         reset_button = QPushButton("Standardwerte")
         reset_button.clicked.connect(self.reset_defaults)
@@ -57,6 +58,7 @@ class SettingsPanel(QGroupBox):
             min_object_area_px=self._value("min_object_area_px"),
             green_dominance_margin=self._value("green_dominance_margin"),
             green_index_min=self._value("green_index_min"),
+            pale_leaf_expansion_px=self._value("pale_leaf_expansion_px"),
             inner_dish_factor=self._value("inner_dish_percent") / 100.0,
             manual_petri_circle=manual_petri_circle,
         )
@@ -86,6 +88,7 @@ class SettingsPanel(QGroupBox):
             "min_object_area_px": 120,
             "green_dominance_margin": 12,
             "green_index_min": 8,
+            "pale_leaf_expansion_px": 12,
             "inner_dish_percent": 90,
         }.items():
             self._sliders[name].setValue(value)

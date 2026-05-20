@@ -1,5 +1,6 @@
 import numpy as np
 
+from analysis.green_segmentation import build_pale_leaf_expansion_mask
 from analysis.green_segmentation import build_green_index_mask
 from analysis.green_segmentation import build_green_dominance_mask
 from analysis.green_segmentation import filter_small_components
@@ -69,3 +70,39 @@ def test_green_index_still_detects_dark_leaf_with_high_absolute_threshold() -> N
 
     assert mask[0, 0] == 255
     assert mask[0, 1] == 0
+
+
+def test_pale_leaf_expansion_only_adds_pixels_near_green_seed() -> None:
+    bgr_image = np.array(
+        [
+            [[35, 95, 35], [170, 185, 168], [170, 185, 168], [170, 185, 168]],
+        ],
+        dtype=np.uint8,
+    )
+    hsv_image = cv2.cvtColor(bgr_image, cv2.COLOR_BGR2HSV)
+    seed_mask = np.array([[255, 0, 0, 0]], dtype=np.uint8)
+
+    mask = build_pale_leaf_expansion_mask(
+        bgr_image,
+        hsv_image,
+        seed_mask,
+        expansion_px=1,
+    )
+
+    assert mask[0, 1] == 255
+    assert mask[0, 3] == 0
+
+
+def test_pale_leaf_expansion_can_be_disabled() -> None:
+    bgr_image = np.array([[[35, 95, 35], [170, 185, 168]]], dtype=np.uint8)
+    hsv_image = cv2.cvtColor(bgr_image, cv2.COLOR_BGR2HSV)
+    seed_mask = np.array([[255, 0]], dtype=np.uint8)
+
+    mask = build_pale_leaf_expansion_mask(
+        bgr_image,
+        hsv_image,
+        seed_mask,
+        expansion_px=0,
+    )
+
+    assert not np.any(mask)
