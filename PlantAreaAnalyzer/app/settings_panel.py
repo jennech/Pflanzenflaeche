@@ -48,13 +48,17 @@ class SettingsPanel(QGroupBox):
         layout.addWidget(reset_button)
         self.setLayout(layout)
 
-    def analysis_settings(self) -> AnalysisSettings:
+    def analysis_settings(
+        self,
+        manual_petri_circle: tuple[int, int, int] | None = None,
+    ) -> AnalysisSettings:
         return AnalysisSettings(
             thresholds=self.thresholds(),
             min_object_area_px=self._value("min_object_area_px"),
             green_dominance_margin=self._value("green_dominance_margin"),
             green_index_min=self._value("green_index_min"),
             inner_dish_factor=self._value("inner_dish_percent") / 100.0,
+            manual_petri_circle=manual_petri_circle,
         )
 
     def thresholds(self) -> HSVThresholds:

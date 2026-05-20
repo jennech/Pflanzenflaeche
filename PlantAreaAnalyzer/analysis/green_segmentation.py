@@ -10,7 +10,7 @@ from PySide6.QtGui import QImage
 
 from analysis.calibration import calibrate_from_petri_diameter_px
 from analysis.measurement import MeasurementResult, measure_green_area
-from analysis.petri_detection import build_petri_mask, detect_petri_circle
+from analysis.petri_detection import PetriCircle, build_petri_mask, detect_petri_circle
 from analysis.overlay import build_green_overlay
 from analysis.settings import AnalysisSettings, HSVThresholds
 
@@ -21,6 +21,7 @@ class AnalysisResult:
     overlay_qimage: QImage
     mask_qimage: QImage
     measurement: MeasurementResult
+    petri_circle: PetriCircle
 
 
 def analyze_green_area(
@@ -33,7 +34,11 @@ def analyze_green_area(
     if bgr_image is None:
         raise ValueError(f"Bild konnte nicht geladen werden: {image_path}")
 
-    petri_circle = detect_petri_circle(bgr_image)
+    petri_circle = (
+        PetriCircle(*settings.manual_petri_circle)
+        if settings.manual_petri_circle is not None
+        else detect_petri_circle(bgr_image)
+    )
     hsv_image = cv2.cvtColor(bgr_image, cv2.COLOR_BGR2HSV)
     hsv_mask = cv2.inRange(
         hsv_image,
@@ -83,6 +88,7 @@ def analyze_green_area(
         overlay_qimage=numpy_to_qimage(overlay_rgb),
         mask_qimage=numpy_to_qimage(mask_rgb),
         measurement=measurement,
+        petri_circle=petri_circle,
     )
 
 

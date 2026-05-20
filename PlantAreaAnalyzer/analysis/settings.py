@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from dataclasses import field
+from typing import Optional
 
 import numpy as np
 
@@ -30,3 +31,4 @@ class AnalysisSettings:
     green_index_min: int = 8
     inner_dish_factor: float = 0.90
     morphology_kernel_size: int = 3
+    manual_petri_circle: Optional[tuple[int, int, int]] = None
