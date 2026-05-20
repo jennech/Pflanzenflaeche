@@ -1,0 +1,4 @@
+opencv-python
+numpy<2
+PySide6==6.10.3
+pytest
