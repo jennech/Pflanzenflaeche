@@ -8,6 +8,8 @@ from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
     QFileDialog,
+    QGridLayout,
+    QLabel,
     QHBoxLayout,
     QMainWindow,
     QMessageBox,
@@ -22,6 +24,9 @@ from app.settings_panel import SettingsPanel
 
 
 class MainWindow(QMainWindow):
+    PETRI_NUDGE_STEP_PX = 5
+    PETRI_RADIUS_STEP_PX = 5
+
     def __init__(self) -> None:
         super().__init__()
         self.setWindowTitle("PlantAreaAnalyzer")
@@ -46,6 +51,11 @@ class MainWindow(QMainWindow):
 
         self.manual_petri_checkbox = QCheckBox("Petrischale manuell setzen")
         self.manual_petri_checkbox.toggled.connect(self.toggle_manual_petri_mode)
+        self.manual_adjust_label = QLabel(
+            "Manuell: erst grob setzen, dann hier fein verschieben."
+        )
+        self.manual_adjust_label.setWordWrap(True)
+        self.manual_adjust_layout = self.build_manual_adjust_layout()
 
         image_layout = QHBoxLayout()
         image_layout.addWidget(self.original_viewer)
@@ -55,6 +65,8 @@ class MainWindow(QMainWindow):
         right_layout.addWidget(load_button)
         right_layout.addWidget(self.show_petri_checkbox)
         right_layout.addWidget(self.manual_petri_checkbox)
+        right_layout.addWidget(self.manual_adjust_label)
+        right_layout.addLayout(self.manual_adjust_layout)
         right_layout.addWidget(self.settings_panel)
         right_layout.addWidget(self.results_table)
         right_layout.addStretch()
@@ -66,6 +78,43 @@ class MainWindow(QMainWindow):
         central_widget = QWidget()
         central_widget.setLayout(main_layout)
         self.setCentralWidget(central_widget)
+
+    def build_manual_adjust_layout(self) -> QGridLayout:
+        layout = QGridLayout()
+
+        up_button = QPushButton("Hoch")
+        down_button = QPushButton("Runter")
+        left_button = QPushButton("Links")
+        right_button = QPushButton("Rechts")
+        radius_smaller_button = QPushButton("Radius -")
+        radius_larger_button = QPushButton("Radius +")
+
+        up_button.clicked.connect(
+            lambda: self.adjust_manual_petri_circle(dy=-self.PETRI_NUDGE_STEP_PX)
+        )
+        down_button.clicked.connect(
+            lambda: self.adjust_manual_petri_circle(dy=self.PETRI_NUDGE_STEP_PX)
+        )
+        left_button.clicked.connect(
+            lambda: self.adjust_manual_petri_circle(dx=-self.PETRI_NUDGE_STEP_PX)
+        )
+        right_button.clicked.connect(
+            lambda: self.adjust_manual_petri_circle(dx=self.PETRI_NUDGE_STEP_PX)
+        )
+        radius_smaller_button.clicked.connect(
+            lambda: self.adjust_manual_petri_circle(dr=-self.PETRI_RADIUS_STEP_PX)
+        )
+        radius_larger_button.clicked.connect(
+            lambda: self.adjust_manual_petri_circle(dr=self.PETRI_RADIUS_STEP_PX)
+        )
+
+        layout.addWidget(up_button, 0, 1)
+        layout.addWidget(left_button, 1, 0)
+        layout.addWidget(right_button, 1, 2)
+        layout.addWidget(down_button, 2, 1)
+        layout.addWidget(radius_smaller_button, 3, 0)
+        layout.addWidget(radius_larger_button, 3, 2)
+        return layout
 
     def load_image(self) -> None:
         file_path, _ = QFileDialog.getOpenFileName(
@@ -128,6 +177,26 @@ class MainWindow(QMainWindow):
         self.manual_petri_checkbox.setChecked(True)
         self.reanalyze_current_image()
 
+    def adjust_manual_petri_circle(
+        self,
+        dx: int = 0,
+        dy: int = 0,
+        dr: int = 0,
+    ) -> None:
+        base_circle = self.manual_petri_circle or self.current_petri_circle
+        if base_circle is None:
+            return
+
+        center_x, center_y, radius = base_circle
+        self.manual_petri_circle = (
+            max(0, center_x + dx),
+            max(0, center_y + dy),
+            max(1, radius + dr),
+        )
+        if not self.manual_petri_checkbox.isChecked():
+            self.manual_petri_checkbox.setChecked(True)
+        self.reanalyze_current_image()
+
     def toggle_manual_petri_mode(self, enabled: bool) -> None:
         self.original_viewer.set_manual_circle_enabled(enabled)
         if not enabled:
@@ -137,8 +206,22 @@ class MainWindow(QMainWindow):
     def update_petri_overlay(self) -> None:
         visible = self.show_petri_checkbox.isChecked()
         circle = self.manual_petri_circle or self.current_petri_circle
+        analysis_circle = self.analysis_overlay_circle(circle)
         self.original_viewer.set_petri_circle(circle, visible)
         self.result_viewer.set_petri_circle(circle, visible)
+        self.original_viewer.set_analysis_circle(analysis_circle, visible)
+        self.result_viewer.set_analysis_circle(analysis_circle, visible)
+
+    def analysis_overlay_circle(
+        self,
+        circle: tuple[int, int, int] | None,
+    ) -> tuple[int, int, int] | None:
+        if circle is None:
+            return None
+
+        center_x, center_y, radius = circle
+        inner_radius = max(1, int(round(radius * self.settings_panel.inner_dish_factor())))
+        return (center_x, center_y, inner_radius)
 
 
 def run() -> None:

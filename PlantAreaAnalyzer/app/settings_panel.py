@@ -61,6 +61,9 @@ class SettingsPanel(QGroupBox):
             manual_petri_circle=manual_petri_circle,
         )
 
+    def inner_dish_factor(self) -> float:
+        return self._value("inner_dish_percent") / 100.0
+
     def thresholds(self) -> HSVThresholds:
         return HSVThresholds(
             h_min=self._value("h_min"),

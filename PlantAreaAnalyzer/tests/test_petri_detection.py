@@ -4,6 +4,7 @@ import cv2
 from analysis.petri_detection import PetriCircle
 from analysis.petri_detection import build_petri_mask
 from analysis.petri_detection import detect_petri_circle_from_dark_region
+from analysis.petri_detection import select_best_hough_circle
 
 
 def test_build_petri_mask_creates_circular_roi() -> None:
@@ -24,3 +25,21 @@ def test_dark_region_detection_ignores_grid_on_wide_image() -> None:
     assert abs(circle.center_x - 105) <= 8
     assert abs(circle.center_y - 110) <= 8
     assert abs(circle.radius - 70) <= 8
+
+
+def test_hough_selection_prefers_contour_sized_circle_over_largest_shadow() -> None:
+    hough_circles = np.array(
+        [
+            [101.0, 99.0, 72.0],
+            [102.0, 100.0, 92.0],
+        ],
+        dtype=np.float32,
+    )
+
+    circle = select_best_hough_circle(
+        hough_circles,
+        contour_circle=PetriCircle(100, 100, 70),
+        min_dim=220,
+    )
+
+    assert circle.radius == 72

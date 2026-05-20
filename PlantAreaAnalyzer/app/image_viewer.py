@@ -37,6 +37,7 @@ class ImageViewer(QGraphicsView):
         self.setScene(self._scene)
         self._pixmap_item: Optional[QGraphicsPixmapItem] = None
         self._circle_item: Optional[QGraphicsEllipseItem] = None
+        self._inner_circle_item: Optional[QGraphicsEllipseItem] = None
         self._pixmap: Optional[QPixmap] = None
         self._placeholder_text = placeholder_text
         self._zoom_factor = 1.0
@@ -54,6 +55,7 @@ class ImageViewer(QGraphicsView):
         if self._pixmap_item is None:
             self._scene.clear()
             self._circle_item = None
+            self._inner_circle_item = None
             self._pixmap_item = self._scene.addPixmap(self._pixmap)
         else:
             self._pixmap_item.setPixmap(self._pixmap)
@@ -95,10 +97,38 @@ class ImageViewer(QGraphicsView):
 
         self._circle_item.setVisible(visible)
 
+    def set_analysis_circle(
+        self,
+        circle: tuple[int, int, int] | None,
+        visible: bool,
+    ) -> None:
+        if circle is None or self._pixmap_item is None:
+            self._remove_inner_circle()
+            return
+
+        center_x, center_y, radius = circle
+        rect = QRectF(
+            center_x - radius,
+            center_y - radius,
+            radius * 2,
+            radius * 2,
+        )
+        if self._inner_circle_item is None:
+            pen = QPen(QColor(0, 170, 255), 2)
+            pen.setStyle(Qt.DashLine)
+            self._inner_circle_item = self._scene.addEllipse(rect, pen)
+            self._inner_circle_item.setZValue(11)
+        else:
+            self._inner_circle_item.setRect(rect)
+
+        self._inner_circle_item.setVisible(visible)
+
     def set_petri_overlay_visible(self, visible: bool) -> None:
         self._circle_visible = visible
         if self._circle_item is not None:
             self._circle_item.setVisible(visible)
+        if self._inner_circle_item is not None:
+            self._inner_circle_item.setVisible(visible)
 
     def set_manual_circle_enabled(self, enabled: bool) -> None:
         self._manual_circle_enabled = enabled
@@ -204,6 +234,7 @@ class ImageViewer(QGraphicsView):
         self._scene.clear()
         self._pixmap_item = None
         self._circle_item = None
+        self._inner_circle_item = None
         self._zoom_factor = 1.0
         self._scene.addText(self._placeholder_text)
 
@@ -211,6 +242,11 @@ class ImageViewer(QGraphicsView):
         if self._circle_item is not None:
             self._scene.removeItem(self._circle_item)
             self._circle_item = None
+
+    def _remove_inner_circle(self) -> None:
+        if self._inner_circle_item is not None:
+            self._scene.removeItem(self._inner_circle_item)
+            self._inner_circle_item = None
 
 
 def distance_between(first: QPointF, second: QPointF) -> float:
