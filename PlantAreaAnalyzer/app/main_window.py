@@ -4,16 +4,17 @@ import sys
 from pathlib import Path
 from typing import Optional
 
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
     QFileDialog,
     QGridLayout,
-    QLabel,
-    QHBoxLayout,
     QMainWindow,
     QMessageBox,
     QPushButton,
+    QSplitter,
+    QToolButton,
     QVBoxLayout,
     QWidget,
 )
@@ -51,33 +52,53 @@ class MainWindow(QMainWindow):
 
         self.manual_petri_checkbox = QCheckBox("Petrischale manuell setzen")
         self.manual_petri_checkbox.toggled.connect(self.toggle_manual_petri_mode)
-        self.manual_adjust_label = QLabel(
-            "Manuell: erst grob setzen, dann hier fein verschieben."
-        )
-        self.manual_adjust_label.setWordWrap(True)
-        self.manual_adjust_layout = self.build_manual_adjust_layout()
 
-        image_layout = QHBoxLayout()
-        image_layout.addWidget(self.original_viewer)
-        image_layout.addWidget(self.result_viewer)
+        self.manual_adjust_toggle = QToolButton()
+        self.manual_adjust_toggle.setText("Manuelle Korrektur anzeigen")
+        self.manual_adjust_toggle.setCheckable(True)
+        self.manual_adjust_toggle.setChecked(False)
+        self.manual_adjust_toggle.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
+        self.manual_adjust_toggle.setArrowType(Qt.RightArrow)
+        self.manual_adjust_toggle.toggled.connect(self.toggle_manual_adjust_panel)
+
+        self.manual_adjust_panel = QWidget()
+        self.manual_adjust_panel.setLayout(self.build_manual_adjust_layout())
+        self.manual_adjust_panel.setVisible(False)
 
         right_layout = QVBoxLayout()
         right_layout.addWidget(load_button)
         right_layout.addWidget(self.show_petri_checkbox)
         right_layout.addWidget(self.manual_petri_checkbox)
-        right_layout.addWidget(self.manual_adjust_label)
-        right_layout.addLayout(self.manual_adjust_layout)
+        right_layout.addWidget(self.manual_adjust_toggle)
+        right_layout.addWidget(self.manual_adjust_panel)
         right_layout.addWidget(self.settings_panel)
-        right_layout.addWidget(self.results_table)
         right_layout.addStretch()
 
-        main_layout = QHBoxLayout()
-        main_layout.addLayout(image_layout, stretch=3)
-        main_layout.addLayout(right_layout, stretch=1)
+        controls_widget = QWidget()
+        controls_widget.setLayout(right_layout)
 
-        central_widget = QWidget()
-        central_widget.setLayout(main_layout)
-        self.setCentralWidget(central_widget)
+        right_splitter = QSplitter(Qt.Vertical)
+        right_splitter.addWidget(controls_widget)
+        right_splitter.addWidget(self.results_table)
+        right_splitter.setSizes([560, 220])
+        right_splitter.setStretchFactor(0, 2)
+        right_splitter.setStretchFactor(1, 1)
+
+        image_splitter = QSplitter(Qt.Horizontal)
+        image_splitter.addWidget(self.original_viewer)
+        image_splitter.addWidget(self.result_viewer)
+        image_splitter.setSizes([560, 560])
+        image_splitter.setStretchFactor(0, 1)
+        image_splitter.setStretchFactor(1, 1)
+
+        main_splitter = QSplitter(Qt.Horizontal)
+        main_splitter.addWidget(image_splitter)
+        main_splitter.addWidget(right_splitter)
+        main_splitter.setSizes([880, 320])
+        main_splitter.setStretchFactor(0, 3)
+        main_splitter.setStretchFactor(1, 1)
+
+        self.setCentralWidget(main_splitter)
 
     def build_manual_adjust_layout(self) -> QGridLayout:
         layout = QGridLayout()
@@ -115,6 +136,17 @@ class MainWindow(QMainWindow):
         layout.addWidget(radius_smaller_button, 3, 0)
         layout.addWidget(radius_larger_button, 3, 2)
         return layout
+
+    def toggle_manual_adjust_panel(self, expanded: bool) -> None:
+        self.manual_adjust_panel.setVisible(expanded)
+        self.manual_adjust_toggle.setArrowType(
+            Qt.DownArrow if expanded else Qt.RightArrow
+        )
+        self.manual_adjust_toggle.setText(
+            "Manuelle Korrektur ausblenden"
+            if expanded
+            else "Manuelle Korrektur anzeigen"
+        )
 
     def load_image(self) -> None:
         file_path, _ = QFileDialog.getOpenFileName(
