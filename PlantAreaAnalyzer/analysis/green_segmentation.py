@@ -31,6 +31,15 @@ class HSVThresholds:
 
 
 @dataclass(frozen=True)
+class AnalysisSettings:
+    thresholds: HSVThresholds = HSVThresholds()
+    min_object_area_px: int = 120
+    green_dominance_margin: int = 12
+    inner_dish_factor: float = 0.90
+    morphology_kernel_size: int = 3
+
+
+@dataclass(frozen=True)
 class AnalysisResult:
     original_qimage: QImage
     overlay_qimage: QImage
@@ -41,8 +50,9 @@ class AnalysisResult:
 def analyze_green_area(
     image_path: Path,
     thresholds: Optional[HSVThresholds] = None,
+    settings: Optional[AnalysisSettings] = None,
 ) -> AnalysisResult:
-    thresholds = thresholds or HSVThresholds()
+    settings = settings or AnalysisSettings(thresholds=thresholds or HSVThresholds())
     bgr_image = cv2.imread(str(image_path))
     if bgr_image is None:
         raise ValueError(f"Bild konnte nicht geladen werden: {image_path}")
@@ -51,17 +61,31 @@ def analyze_green_area(
     hsv_image = cv2.cvtColor(bgr_image, cv2.COLOR_BGR2HSV)
     mask = cv2.inRange(
         hsv_image,
-        thresholds.lower_bound(),
-        thresholds.upper_bound(),
+        settings.thresholds.lower_bound(),
+        settings.thresholds.upper_bound(),
     )
 
-    dish_mask = build_petri_mask(mask.shape, petri_circle, shrink_factor=0.90)
+    dominance_mask = build_green_dominance_mask(
+        bgr_image,
+        settings.green_dominance_margin,
+    )
+    mask = cv2.bitwise_and(mask, dominance_mask)
+
+    dish_mask = build_petri_mask(
+        mask.shape,
+        petri_circle,
+        shrink_factor=settings.inner_dish_factor,
+    )
     mask = cv2.bitwise_and(mask, dish_mask)
 
-    kernel = np.ones((3, 3), dtype=np.uint8)
+    kernel_size = max(1, settings.morphology_kernel_size)
+    kernel = np.ones((kernel_size, kernel_size), dtype=np.uint8)
     cleaned_mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
     cleaned_mask = cv2.morphologyEx(cleaned_mask, cv2.MORPH_CLOSE, kernel)
-    cleaned_mask = filter_small_components(cleaned_mask, min_area_px=120)
+    cleaned_mask = filter_small_components(
+        cleaned_mask,
+        min_area_px=settings.min_object_area_px,
+    )
 
     calibration = calibrate_from_petri_diameter_px(
         pixel_diameter=float(petri_circle.radius * 2),
@@ -78,6 +102,20 @@ def analyze_green_area(
         mask_qimage=numpy_to_qimage(mask_rgb),
         measurement=measurement,
     )
+
+
+def build_green_dominance_mask(
+    bgr_image: np.ndarray,
+    min_margin: int,
+) -> np.ndarray:
+    """Keep pixels where green is stronger than red and blue."""
+
+    blue, green, red = cv2.split(bgr_image.astype(np.int16))
+    green_dominates = (
+        (green - red >= min_margin)
+        & (green - blue >= min_margin)
+    )
+    return (green_dominates.astype(np.uint8)) * 255
 
 
 def filter_small_components(mask: np.ndarray, min_area_px: int) -> np.ndarray:

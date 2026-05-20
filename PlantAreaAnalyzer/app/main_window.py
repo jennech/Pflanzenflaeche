@@ -35,7 +35,7 @@ class MainWindow(QMainWindow):
         self.result_viewer = ImageViewer("Maske oder Overlay wird hier angezeigt")
         self.results_table = ResultsTable()
         self.settings_panel = SettingsPanel()
-        self.settings_panel.thresholds_changed.connect(self.reanalyze_current_image)
+        self.settings_panel.settings_changed.connect(self.reanalyze_current_image)
 
         image_layout = QHBoxLayout()
         image_layout.addWidget(self.original_viewer)
@@ -76,7 +76,7 @@ class MainWindow(QMainWindow):
         try:
             result = analyze_green_area(
                 self.current_image_path,
-                thresholds=self.settings_panel.thresholds(),
+                settings=self.settings_panel.analysis_settings(),
             )
         except Exception as error:  # noqa: BLE001
             QMessageBox.critical(self, "Analysefehler", str(error))
