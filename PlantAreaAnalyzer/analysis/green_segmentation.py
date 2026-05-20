@@ -115,7 +115,22 @@ def build_green_index_mask(
 
     blue, green, red = cv2.split(bgr_image.astype(np.int16))
     excess_green = (2 * green) - red - blue
-    green_index_mask = excess_green >= settings.green_index_min
+
+    intensity = red + green + blue
+    normalized_excess_green = np.divide(
+        excess_green,
+        np.maximum(intensity, 1),
+        dtype=np.float32,
+    )
+    normalized_threshold = max(0.06, settings.green_index_min / 1000.0)
+    green_index_mask = (
+        (excess_green >= settings.green_index_min)
+        | (normalized_excess_green >= normalized_threshold)
+    )
+    green_not_below_other_channels = (
+        (green >= red - 5)
+        & (green >= blue - 5)
+    )
 
     h_min = max(0, settings.thresholds.h_min - 18)
     h_max = min(179, settings.thresholds.h_max + 18)
@@ -132,7 +147,13 @@ def build_green_index_mask(
         & (value >= v_min)
     )
 
-    return ((green_index_mask & relaxed_hsv_mask).astype(np.uint8)) * 255
+    return (
+        (
+            green_index_mask
+            & green_not_below_other_channels
+            & relaxed_hsv_mask
+        ).astype(np.uint8)
+    ) * 255
 
 
 def filter_small_components(mask: np.ndarray, min_area_px: int) -> np.ndarray:

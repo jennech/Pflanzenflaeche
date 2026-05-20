@@ -50,3 +50,22 @@ def test_green_index_detects_dark_desaturated_leaf() -> None:
 
     assert mask[0, 0] == 255
     assert mask[0, 1] == 0
+
+
+def test_green_index_still_detects_dark_leaf_with_high_absolute_threshold() -> None:
+    bgr_image = np.array(
+        [
+            [[44, 72, 42], [90, 76, 48]],
+        ],
+        dtype=np.uint8,
+    )
+    hsv_image = cv2.cvtColor(bgr_image, cv2.COLOR_BGR2HSV)
+
+    mask = build_green_index_mask(
+        bgr_image,
+        hsv_image,
+        AnalysisSettings(green_index_min=80),
+    )
+
+    assert mask[0, 0] == 255
+    assert mask[0, 1] == 0
