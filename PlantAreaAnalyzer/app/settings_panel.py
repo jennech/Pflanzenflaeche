@@ -14,6 +14,68 @@ from analysis.settings import AnalysisSettings
 from analysis.settings import HSVThresholds
 
 
+SLIDER_HELP: dict[str, str] = {
+    "h_min": (
+        "Untere Farbton-Grenze fuer Gruen im HSV-Farbraum. Hoeher = gelbe/braune "
+        "Bereiche werden eher ausgeschlossen, aber gelbliche Blaetter koennen fehlen."
+    ),
+    "h_max": (
+        "Obere Farbton-Grenze fuer Gruen im HSV-Farbraum. Niedriger = blaue Farbsaeume "
+        "und Fremdfarben werden eher ausgeschlossen, aber blaeuliches/dunkles Gruen "
+        "kann fehlen."
+    ),
+    "s_min": (
+        "Minimale Farbsattigung. Hoeher = graue/weisse Wurzeln, Reflexe und blasse "
+        "Flecken werden weniger erkannt. Zu hoch kann blasse Blaetter verlieren."
+    ),
+    "s_max": (
+        "Maximale Farbsattigung. Meist bei 255 lassen. Nur senken, wenn sehr satte "
+        "Farbartefakte oder Markierungen faelschlich erkannt werden."
+    ),
+    "v_min": (
+        "Minimale Helligkeit. Hoeher = sehr dunkle Artefakte werden ausgeblendet. "
+        "Zu hoch kann dunkle Blaetter verlieren."
+    ),
+    "v_max": (
+        "Maximale Helligkeit. Niedriger = helle Reflexe/helle Wurzeln werden weniger "
+        "erkannt. Zu niedrig kann helle Blaetter abschneiden."
+    ),
+    "min_object_area_px": (
+        "Kleine erkannte Flaechen unterhalb dieser Pixelzahl werden entfernt. Hoeher = "
+        "weniger Rauschen/Wurzelreste, aber kleine Blaetter koennen verschwinden."
+    ),
+    "max_object_area_px": (
+        "Sehr grosse zusammenhaengende Maskenflaechen oberhalb dieser Pixelzahl werden "
+        "entfernt. Hilft gegen Farbsaeume oder Medium-Artefakte, die zu gross fuer eine "
+        "einzelne Blatt-/Pflanzeninsel sind."
+    ),
+    "green_dominance_margin": (
+        "Wie stark der Gruenkanal gegenueber Rot und Blau dominieren muss. Hoeher = "
+        "strengere Blatt-Erkennung und weniger Farbsaeume; zu hoch verliert dunkle oder "
+        "gelbliche Blaetter."
+    ),
+    "green_index_min": (
+        "Schwelle fuer den Gruen-Index, zusaetzlich zu HSV. Hoeher = weniger false "
+        "positives; niedriger = erkennt schwaches/dunkles Gruen besser, kann aber "
+        "Wurzeln oder Medium mitnehmen."
+    ),
+    "leaf_fill_px": (
+        "Schliesst kleine Loecher innerhalb bereits erkannter Blattflaechen. Erweitert "
+        "nicht grossflaechig; gut fuer gesprenkelte Masken. Zu hoch kann nahe Bereiche "
+        "verbinden."
+    ),
+    "pale_leaf_expansion_px": (
+        "Ergaenzt blasse/gelbliche Blattteile nur in der Naehe sicher erkannter gruener "
+        "Pixel. Hoeher = mehr helle Blattteile, aber auch mehr Risiko fuer Wurzeln."
+    ),
+    "inner_dish_percent": (
+        "Radius des wirklich ausgewerteten Innenbereichs. Niedriger = Rand, Glas, "
+        "Schatten und Farbsaeume werden ausgeschlossen. Der blaue gestrichelte Kreis "
+        "zeigt diesen Analysebereich."
+    ),
+}
+
+
 class SettingsPanel(QGroupBox):
     settings_changed = Signal(object)
 
@@ -43,6 +105,9 @@ class SettingsPanel(QGroupBox):
         self._add_slider(slider_grid, "Innenradius %", "inner_dish_percent", 75, 100, 90, 12)
 
         reset_button = QPushButton("Standardwerte")
+        reset_button.setToolTip(
+            "Setzt alle Segmentierungsregler auf die empfohlenen Startwerte zurueck."
+        )
         reset_button.clicked.connect(self.reset_defaults)
 
         layout = QVBoxLayout()
@@ -113,13 +178,21 @@ class SettingsPanel(QGroupBox):
         row: int,
     ) -> None:
         title_label = QLabel(title)
+        tooltip = SLIDER_HELP.get(name, "")
+        if tooltip:
+            title_label.setToolTip(tooltip)
+
         value_label = QLabel(str(value))
         value_label.setMinimumWidth(32)
         value_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        if tooltip:
+            value_label.setToolTip(tooltip)
 
         slider = QSlider(Qt.Horizontal)
         slider.setRange(minimum, maximum)
         slider.setValue(value)
+        if tooltip:
+            slider.setToolTip(tooltip)
         slider.valueChanged.connect(
             lambda new_value, key=name: self._slider_changed(key, new_value)
         )
