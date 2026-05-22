@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
     QMainWindow,
     QMessageBox,
     QPushButton,
+    QScrollArea,
     QSplitter,
     QToolButton,
     QVBoxLayout,
@@ -73,6 +74,14 @@ class MainWindow(QMainWindow):
         self.manual_adjust_panel.setLayout(self.build_manual_adjust_layout())
         self.manual_adjust_panel.setVisible(False)
 
+        self.results_toggle = QToolButton()
+        self.results_toggle.setText("Ergebnisse ausblenden")
+        self.results_toggle.setCheckable(True)
+        self.results_toggle.setChecked(True)
+        self.results_toggle.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
+        self.results_toggle.setArrowType(Qt.DownArrow)
+        self.results_toggle.toggled.connect(self.toggle_results_panel)
+
         right_layout = QVBoxLayout()
         right_layout.addWidget(load_button)
         right_layout.addWidget(self.show_petri_checkbox)
@@ -87,10 +96,22 @@ class MainWindow(QMainWindow):
         controls_widget = QWidget()
         controls_widget.setLayout(right_layout)
 
+        controls_scroll = QScrollArea()
+        controls_scroll.setWidgetResizable(True)
+        controls_scroll.setWidget(controls_widget)
+        controls_scroll.setMinimumHeight(180)
+
+        self.results_panel = QWidget()
+        results_layout = QVBoxLayout()
+        results_layout.setContentsMargins(0, 0, 0, 0)
+        results_layout.addWidget(self.results_toggle)
+        results_layout.addWidget(self.results_table)
+        self.results_panel.setLayout(results_layout)
+
         right_splitter = QSplitter(Qt.Vertical)
-        right_splitter.addWidget(controls_widget)
-        right_splitter.addWidget(self.results_table)
-        right_splitter.setSizes([560, 220])
+        right_splitter.addWidget(controls_scroll)
+        right_splitter.addWidget(self.results_panel)
+        right_splitter.setSizes([460, 260])
         right_splitter.setStretchFactor(0, 2)
         right_splitter.setStretchFactor(1, 1)
 
@@ -156,6 +177,13 @@ class MainWindow(QMainWindow):
             "Manuelle Korrektur ausblenden"
             if expanded
             else "Manuelle Korrektur anzeigen"
+        )
+
+    def toggle_results_panel(self, expanded: bool) -> None:
+        self.results_table.setVisible(expanded)
+        self.results_toggle.setArrowType(Qt.DownArrow if expanded else Qt.RightArrow)
+        self.results_toggle.setText(
+            "Ergebnisse ausblenden" if expanded else "Ergebnisse anzeigen"
         )
 
     def load_image(self) -> None:
