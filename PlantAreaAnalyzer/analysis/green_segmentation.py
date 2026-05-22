@@ -290,8 +290,9 @@ def filter_components_by_area(
 def remove_components_at_points(
     mask: np.ndarray,
     points: tuple[tuple[int, int], ...],
+    search_radius_px: int = 16,
 ) -> np.ndarray:
-    """Remove complete connected components touched by manual exclusion clicks."""
+    """Remove complete components touched, or nearly touched, by exclusion clicks."""
 
     if not points:
         return mask
@@ -306,7 +307,12 @@ def remove_components_at_points(
         if point_x < 0 or point_y < 0 or point_x >= width or point_y >= height:
             continue
 
-        label = int(labels[point_y, point_x])
+        label = nearest_component_label(
+            labels,
+            point_x,
+            point_y,
+            search_radius_px,
+        )
         if label > 0:
             labels_to_remove.add(label)
 
@@ -317,6 +323,39 @@ def remove_components_at_points(
     for label in labels_to_remove:
         filtered[labels == label] = 0
     return filtered
+
+
+def nearest_component_label(
+    labels: np.ndarray,
+    point_x: int,
+    point_y: int,
+    search_radius_px: int,
+) -> int:
+    """Find the clicked label or the nearest label within a small radius."""
+
+    direct_label = int(labels[point_y, point_x])
+    if direct_label > 0:
+        return direct_label
+
+    radius = max(0, search_radius_px)
+    if radius == 0:
+        return 0
+
+    height, width = labels.shape
+    x_min = max(0, point_x - radius)
+    x_max = min(width, point_x + radius + 1)
+    y_min = max(0, point_y - radius)
+    y_max = min(height, point_y + radius + 1)
+    window = labels[y_min:y_max, x_min:x_max]
+    candidate_positions = np.argwhere(window > 0)
+    if candidate_positions.size == 0:
+        return 0
+
+    absolute_y = candidate_positions[:, 0] + y_min
+    absolute_x = candidate_positions[:, 1] + x_min
+    distances = (absolute_x - point_x) ** 2 + (absolute_y - point_y) ** 2
+    nearest_index = int(np.argmin(distances))
+    return int(window[tuple(candidate_positions[nearest_index])])
 
 
 def numpy_to_qimage(rgb_image: np.ndarray) -> QImage:

@@ -6,6 +6,7 @@ from analysis.green_segmentation import build_green_dominance_mask
 from analysis.green_segmentation import filter_components_by_area
 from analysis.green_segmentation import filter_small_components
 from analysis.green_segmentation import fill_leaf_gaps
+from analysis.green_segmentation import nearest_component_label
 from analysis.green_segmentation import remove_components_at_points
 from analysis.green_segmentation import suppress_root_like_components
 from analysis.settings import AnalysisSettings
@@ -68,6 +69,24 @@ def test_remove_components_at_points_removes_touched_component() -> None:
 
     assert filtered[2, 2] == 0
     assert filtered[2, 8] == 255
+
+
+def test_remove_components_at_points_uses_nearby_component() -> None:
+    mask = np.zeros((12, 12), dtype=np.uint8)
+    mask[5:8, 5:8] = 255
+
+    filtered = remove_components_at_points(mask, ((4, 6),), search_radius_px=2)
+
+    assert filtered[6, 6] == 0
+
+
+def test_nearest_component_label_ignores_far_components() -> None:
+    labels = np.zeros((12, 12), dtype=np.int32)
+    labels[9:11, 9:11] = 3
+
+    label = nearest_component_label(labels, 2, 2, search_radius_px=2)
+
+    assert label == 0
 
 
 def test_green_index_detects_dark_desaturated_leaf() -> None:
