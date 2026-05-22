@@ -35,13 +35,16 @@ class MainWindow(QMainWindow):
         self.current_image_path: Optional[Path] = None
         self.current_petri_circle: Optional[tuple[int, int, int]] = None
         self.manual_petri_circle: Optional[tuple[int, int, int]] = None
+        self.excluded_component_points: list[tuple[int, int]] = []
 
         load_button = QPushButton("Bild laden")
         load_button.clicked.connect(self.load_image)
 
         self.original_viewer = ImageViewer("Noch kein Bild geladen")
         self.original_viewer.circle_selected.connect(self.set_manual_petri_circle)
+        self.original_viewer.point_selected.connect(self.exclude_component_at_point)
         self.result_viewer = ImageViewer("Maske oder Overlay wird hier angezeigt")
+        self.result_viewer.point_selected.connect(self.exclude_component_at_point)
         self.results_table = ResultsTable()
         self.settings_panel = SettingsPanel()
         self.settings_panel.settings_changed.connect(self.reanalyze_current_image)
@@ -52,6 +55,11 @@ class MainWindow(QMainWindow):
 
         self.manual_petri_checkbox = QCheckBox("Petrischale manuell setzen")
         self.manual_petri_checkbox.toggled.connect(self.toggle_manual_petri_mode)
+
+        self.exclude_component_checkbox = QCheckBox("Stoerflaeche per Klick entfernen")
+        self.exclude_component_checkbox.toggled.connect(self.toggle_exclusion_mode)
+        reset_exclusions_button = QPushButton("Entfernte Flaechen zuruecksetzen")
+        reset_exclusions_button.clicked.connect(self.reset_excluded_components)
 
         self.manual_adjust_toggle = QToolButton()
         self.manual_adjust_toggle.setText("Manuelle Korrektur anzeigen")
@@ -69,6 +77,8 @@ class MainWindow(QMainWindow):
         right_layout.addWidget(load_button)
         right_layout.addWidget(self.show_petri_checkbox)
         right_layout.addWidget(self.manual_petri_checkbox)
+        right_layout.addWidget(self.exclude_component_checkbox)
+        right_layout.addWidget(reset_exclusions_button)
         right_layout.addWidget(self.manual_adjust_toggle)
         right_layout.addWidget(self.manual_adjust_panel)
         right_layout.addWidget(self.settings_panel)
@@ -162,6 +172,7 @@ class MainWindow(QMainWindow):
         self.current_image_path = Path(file_path)
         self.current_petri_circle = None
         self.manual_petri_circle = None
+        self.excluded_component_points = []
         self.reanalyze_current_image()
 
     def reanalyze_current_image(self) -> None:
@@ -175,6 +186,7 @@ class MainWindow(QMainWindow):
                 self.current_image_path,
                 settings=self.settings_panel.analysis_settings(
                     manual_petri_circle=self.manual_petri_circle,
+                    excluded_component_points=tuple(self.excluded_component_points),
                 ),
             )
         except Exception as error:  # noqa: BLE001
@@ -189,6 +201,7 @@ class MainWindow(QMainWindow):
             result.petri_circle.radius,
         )
         self.update_petri_overlay()
+        self.update_exclusion_markers()
         self.results_table.update_results(
             {
                 "Gruene Pixel": f"{result.measurement.green_pixels}",
@@ -230,10 +243,30 @@ class MainWindow(QMainWindow):
         self.reanalyze_current_image()
 
     def toggle_manual_petri_mode(self, enabled: bool) -> None:
+        if enabled and self.exclude_component_checkbox.isChecked():
+            self.exclude_component_checkbox.setChecked(False)
         self.original_viewer.set_manual_circle_enabled(enabled)
+        self.result_viewer.set_manual_circle_enabled(False)
         if not enabled:
             self.manual_petri_circle = None
             self.reanalyze_current_image()
+
+    def toggle_exclusion_mode(self, enabled: bool) -> None:
+        if enabled and self.manual_petri_checkbox.isChecked():
+            self.manual_petri_checkbox.setChecked(False)
+        self.original_viewer.set_exclusion_mode_enabled(enabled)
+        self.result_viewer.set_exclusion_mode_enabled(enabled)
+
+    def exclude_component_at_point(self, point: tuple[int, int]) -> None:
+        self.excluded_component_points.append(point)
+        self.reanalyze_current_image()
+
+    def reset_excluded_components(self) -> None:
+        if not self.excluded_component_points:
+            return
+
+        self.excluded_component_points = []
+        self.reanalyze_current_image()
 
     def update_petri_overlay(self) -> None:
         visible = self.show_petri_checkbox.isChecked()
@@ -243,6 +276,11 @@ class MainWindow(QMainWindow):
         self.result_viewer.set_petri_circle(circle, visible)
         self.original_viewer.set_analysis_circle(analysis_circle, visible)
         self.result_viewer.set_analysis_circle(analysis_circle, visible)
+        self.update_exclusion_markers()
+
+    def update_exclusion_markers(self) -> None:
+        self.original_viewer.set_exclusion_points(self.excluded_component_points)
+        self.result_viewer.set_exclusion_points(self.excluded_component_points)
 
     def analysis_overlay_circle(
         self,

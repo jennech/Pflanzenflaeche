@@ -38,8 +38,9 @@ class SettingsPanel(QGroupBox):
         self._add_slider(slider_grid, "Max Flaeche", "max_object_area_px", 0, 120000, 50000, 7)
         self._add_slider(slider_grid, "Gruen-Abstand", "green_dominance_margin", 0, 80, 12, 8)
         self._add_slider(slider_grid, "Gruen-Index", "green_index_min", -30, 80, 8, 9)
-        self._add_slider(slider_grid, "Blass-Erweit.", "pale_leaf_expansion_px", 0, 45, 12, 10)
-        self._add_slider(slider_grid, "Innenradius %", "inner_dish_percent", 75, 100, 90, 11)
+        self._add_slider(slider_grid, "Blatt-Fuell.", "leaf_fill_px", 0, 16, 2, 10)
+        self._add_slider(slider_grid, "Blass-Erweit.", "pale_leaf_expansion_px", 0, 45, 12, 11)
+        self._add_slider(slider_grid, "Innenradius %", "inner_dish_percent", 75, 100, 90, 12)
 
         reset_button = QPushButton("Standardwerte")
         reset_button.clicked.connect(self.reset_defaults)
@@ -53,6 +54,7 @@ class SettingsPanel(QGroupBox):
     def analysis_settings(
         self,
         manual_petri_circle: tuple[int, int, int] | None = None,
+        excluded_component_points: tuple[tuple[int, int], ...] = (),
     ) -> AnalysisSettings:
         return AnalysisSettings(
             thresholds=self.thresholds(),
@@ -60,9 +62,11 @@ class SettingsPanel(QGroupBox):
             max_object_area_px=self._value("max_object_area_px"),
             green_dominance_margin=self._value("green_dominance_margin"),
             green_index_min=self._value("green_index_min"),
+            leaf_fill_px=self._value("leaf_fill_px"),
             pale_leaf_expansion_px=self._value("pale_leaf_expansion_px"),
             inner_dish_factor=self._value("inner_dish_percent") / 100.0,
             manual_petri_circle=manual_petri_circle,
+            excluded_component_points=excluded_component_points,
         )
 
     def inner_dish_factor(self) -> float:
@@ -91,6 +95,7 @@ class SettingsPanel(QGroupBox):
             "max_object_area_px": 50000,
             "green_dominance_margin": 12,
             "green_index_min": 8,
+            "leaf_fill_px": 2,
             "pale_leaf_expansion_px": 12,
             "inner_dish_percent": 90,
         }.items():

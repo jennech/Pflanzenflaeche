@@ -71,6 +71,7 @@ def analyze_green_area(
         settings.pale_leaf_expansion_px,
     )
     mask = cv2.bitwise_or(mask, cv2.bitwise_and(pale_leaf_mask, dish_mask))
+    mask = fill_leaf_gaps(mask, settings.leaf_fill_px)
 
     kernel_size = max(1, settings.morphology_kernel_size)
     kernel = np.ones((kernel_size, kernel_size), dtype=np.uint8)
@@ -80,6 +81,10 @@ def analyze_green_area(
         cleaned_mask,
         min_area_px=settings.min_object_area_px,
         max_area_px=settings.max_object_area_px,
+    )
+    cleaned_mask = remove_components_at_points(
+        cleaned_mask,
+        settings.excluded_component_points,
     )
 
     calibration = calibrate_from_petri_diameter_px(
@@ -239,6 +244,21 @@ def suppress_root_like_components(mask: np.ndarray) -> np.ndarray:
     return filtered
 
 
+def fill_leaf_gaps(mask: np.ndarray, fill_px: int) -> np.ndarray:
+    """Close small holes and gaps inside leaf blobs without broad expansion."""
+
+    if fill_px <= 0:
+        return mask
+
+    kernel_size = (fill_px * 2) + 1
+    kernel = cv2.getStructuringElement(
+        cv2.MORPH_ELLIPSE,
+        (kernel_size, kernel_size),
+    )
+    filled = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
+    return cv2.bitwise_or(mask, filled)
+
+
 def filter_small_components(mask: np.ndarray, min_area_px: int) -> np.ndarray:
     """Remove tiny green islands that are usually noise or color fringes."""
 
@@ -264,6 +284,38 @@ def filter_components_by_area(
 
         filtered[labels == label] = 255
 
+    return filtered
+
+
+def remove_components_at_points(
+    mask: np.ndarray,
+    points: tuple[tuple[int, int], ...],
+) -> np.ndarray:
+    """Remove complete connected components touched by manual exclusion clicks."""
+
+    if not points:
+        return mask
+
+    num_labels, labels, _, _ = cv2.connectedComponentsWithStats(mask, 8)
+    if num_labels <= 1:
+        return mask
+
+    height, width = mask.shape
+    labels_to_remove: set[int] = set()
+    for point_x, point_y in points:
+        if point_x < 0 or point_y < 0 or point_x >= width or point_y >= height:
+            continue
+
+        label = int(labels[point_y, point_x])
+        if label > 0:
+            labels_to_remove.add(label)
+
+    if not labels_to_remove:
+        return mask
+
+    filtered = mask.copy()
+    for label in labels_to_remove:
+        filtered[labels == label] = 0
     return filtered
 
 

@@ -5,6 +5,8 @@ from analysis.green_segmentation import build_green_index_mask
 from analysis.green_segmentation import build_green_dominance_mask
 from analysis.green_segmentation import filter_components_by_area
 from analysis.green_segmentation import filter_small_components
+from analysis.green_segmentation import fill_leaf_gaps
+from analysis.green_segmentation import remove_components_at_points
 from analysis.green_segmentation import suppress_root_like_components
 from analysis.settings import AnalysisSettings
 
@@ -45,6 +47,27 @@ def test_filter_components_by_area_removes_huge_artifacts() -> None:
 
     assert filtered[3, 3] == 255
     assert filtered[12, 12] == 0
+
+
+def test_fill_leaf_gaps_closes_small_holes() -> None:
+    mask = np.zeros((9, 9), dtype=np.uint8)
+    mask[2:7, 2:7] = 255
+    mask[4, 4] = 0
+
+    filled = fill_leaf_gaps(mask, fill_px=1)
+
+    assert filled[4, 4] == 255
+
+
+def test_remove_components_at_points_removes_touched_component() -> None:
+    mask = np.zeros((8, 12), dtype=np.uint8)
+    mask[1:4, 1:4] = 255
+    mask[1:4, 7:10] = 255
+
+    filtered = remove_components_at_points(mask, ((2, 2),))
+
+    assert filtered[2, 2] == 0
+    assert filtered[2, 8] == 255
 
 
 def test_green_index_detects_dark_desaturated_leaf() -> None:
