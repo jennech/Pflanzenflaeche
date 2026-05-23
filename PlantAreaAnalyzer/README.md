@@ -12,6 +12,8 @@ Der erste MVP enthaelt:
 - Berechnung der Flaechenbedeckung in Prozent
 - eine einfache Platzhalter-Kalibrierung mit festem Petrischalen-Durchmesser von 55 mm
 
+Eine detaillierte Bedienungs- und Windows-Anleitung findest du in [ANLEITUNG.md](ANLEITUNG.md).
+
 ## Projektstruktur
 
 ```text
