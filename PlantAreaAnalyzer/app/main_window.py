@@ -34,12 +34,16 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("PlantAreaAnalyzer")
         self.resize(1200, 720)
         self.current_image_path: Optional[Path] = None
+        self.current_analysis_result = None
         self.current_petri_circle: Optional[tuple[int, int, int]] = None
         self.manual_petri_circle: Optional[tuple[int, int, int]] = None
         self.excluded_component_points: list[tuple[int, int]] = []
 
         load_button = QPushButton("Bild laden")
         load_button.clicked.connect(self.load_image)
+        self.csv_export_button = QPushButton("CSV speichern")
+        self.csv_export_button.setEnabled(False)
+        self.csv_export_button.clicked.connect(self.save_csv_export)
 
         self.original_viewer = ImageViewer("Noch kein Bild geladen")
         self.original_viewer.circle_selected.connect(self.set_manual_petri_circle)
@@ -84,6 +88,7 @@ class MainWindow(QMainWindow):
 
         right_layout = QVBoxLayout()
         right_layout.addWidget(load_button)
+        right_layout.addWidget(self.csv_export_button)
         right_layout.addWidget(self.show_petri_checkbox)
         right_layout.addWidget(self.manual_petri_checkbox)
         right_layout.addWidget(self.exclude_component_checkbox)
@@ -198,6 +203,8 @@ class MainWindow(QMainWindow):
             return
 
         self.current_image_path = Path(file_path)
+        self.current_analysis_result = None
+        self.csv_export_button.setEnabled(False)
         self.current_petri_circle = None
         self.manual_petri_circle = None
         self.excluded_component_points = []
@@ -221,6 +228,8 @@ class MainWindow(QMainWindow):
             QMessageBox.critical(self, "Analysefehler", str(error))
             return
 
+        self.current_analysis_result = result
+        self.csv_export_button.setEnabled(True)
         self.original_viewer.set_image(result.original_qimage)
         self.result_viewer.set_image(result.overlay_qimage)
         self.current_petri_circle = (
@@ -243,6 +252,51 @@ class MainWindow(QMainWindow):
                     f"{result.measurement.coverage_percent:.2f} %"
                 ),
             }
+        )
+
+    def save_csv_export(self) -> None:
+        if self.current_image_path is None or self.current_analysis_result is None:
+            QMessageBox.information(
+                self,
+                "CSV speichern",
+                "Bitte zuerst ein Bild laden und analysieren.",
+            )
+            return
+
+        file_path, _ = QFileDialog.getSaveFileName(
+            self,
+            "CSV speichern",
+            "",
+            "CSV-Dateien (*.csv)",
+        )
+        if not file_path:
+            return
+
+        csv_path = Path(file_path)
+        if csv_path.suffix.lower() != ".csv":
+            csv_path = csv_path.with_suffix(".csv")
+
+        try:
+            from exports.export_csv import export_analysis_to_csv
+
+            export_analysis_to_csv(
+                csv_path=csv_path,
+                image_path=self.current_image_path,
+                measurement=self.current_analysis_result.measurement,
+                petri_circle=self.current_analysis_result.petri_circle,
+                settings=self.settings_panel.analysis_settings(
+                    manual_petri_circle=self.manual_petri_circle,
+                    excluded_component_points=tuple(self.excluded_component_points),
+                ),
+            )
+        except Exception as error:  # noqa: BLE001
+            QMessageBox.critical(self, "CSV-Fehler", str(error))
+            return
+
+        QMessageBox.information(
+            self,
+            "CSV gespeichert",
+            f"Ergebnis wurde gespeichert:\n{csv_path}",
         )
 
     def set_manual_petri_circle(self, circle: tuple[int, int, int]) -> None:
