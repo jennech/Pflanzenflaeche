@@ -142,6 +142,7 @@ def build_mask_for_scoring(
         hsv_image,
         mask,
         settings.pale_leaf_expansion_px,
+        settings,
     )
     mask = cv2.bitwise_or(mask, cv2.bitwise_and(pale_leaf_mask, dish_mask))
     mask = fill_leaf_gaps(mask, settings.leaf_fill_px)

@@ -69,6 +69,7 @@ def analyze_green_area(
         hsv_image,
         mask,
         settings.pale_leaf_expansion_px,
+        settings,
     )
     mask = cv2.bitwise_or(mask, cv2.bitwise_and(pale_leaf_mask, dish_mask))
     mask = fill_leaf_gaps(mask, settings.leaf_fill_px)
@@ -141,9 +142,10 @@ def build_green_index_mask(
         (excess_green >= settings.green_index_min)
         | (normalized_excess_green >= normalized_threshold)
     )
+    index_margin = int(np.clip(settings.green_dominance_margin - 10, -12, 12))
     green_not_below_other_channels = (
-        (green >= red - 5)
-        & (green >= blue - 5)
+        (green - red >= index_margin)
+        & (green - blue >= index_margin)
     )
 
     h_min = max(0, settings.thresholds.h_min - 18)
@@ -175,6 +177,7 @@ def build_pale_leaf_expansion_mask(
     hsv_image: np.ndarray,
     seed_mask: np.ndarray,
     expansion_px: int,
+    settings: AnalysisSettings | None = None,
 ) -> np.ndarray:
     """Add pale tissue only near already detected green plant pixels.
 
@@ -217,7 +220,15 @@ def build_pale_leaf_expansion_mask(
         & (green >= red - 20)
         & (green >= blue - 20)
     )
-    candidate = ((faint_green_or_pale | pale_low_saturation).astype(np.uint8)) * 255
+    candidate_mask = faint_green_or_pale | pale_low_saturation
+    if settings is not None:
+        candidate_mask &= build_expansion_green_gate(
+            bgr_image,
+            settings.green_dominance_margin,
+            settings.green_index_min,
+        )
+
+    candidate = candidate_mask.astype(np.uint8) * 255
     pale_mask = cv2.bitwise_and(candidate, nearby_seed)
     seeded_mask = keep_seeded_leaf_expansion_components(
         pale_mask,
@@ -225,6 +236,36 @@ def build_pale_leaf_expansion_mask(
         expansion_px,
     )
     return suppress_root_like_components(seeded_mask)
+
+
+def build_expansion_green_gate(
+    bgr_image: np.ndarray,
+    green_dominance_margin: int,
+    green_index_min: int,
+) -> np.ndarray:
+    """Make pale expansion obey the same strictness sliders as the green seed."""
+
+    blue, green, red = cv2.split(bgr_image.astype(np.int16))
+    excess_green = (2 * green) - red - blue
+    intensity = red + green + blue
+    normalized_excess_green = np.divide(
+        excess_green,
+        np.maximum(intensity, 1),
+        dtype=np.float32,
+    )
+
+    channel_margin = int(np.clip(green_dominance_margin - 18, -22, 8))
+    excess_threshold = int(np.clip(green_index_min // 3, -12, 28))
+    normalized_threshold = float(np.clip(green_index_min / 1400.0, -0.02, 0.055))
+
+    return (
+        (green - red >= channel_margin)
+        & (green - blue >= channel_margin)
+        & (
+            (excess_green >= excess_threshold)
+            | (normalized_excess_green >= normalized_threshold)
+        )
+    )
 
 
 def keep_seeded_leaf_expansion_components(

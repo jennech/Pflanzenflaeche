@@ -163,6 +163,26 @@ def test_green_index_still_detects_dark_leaf_with_high_absolute_threshold() -> N
     assert mask[0, 1] == 0
 
 
+def test_green_dominance_margin_also_constrains_green_index_path() -> None:
+    bgr_image = np.array([[[72, 76, 70], [44, 88, 42]]], dtype=np.uint8)
+    hsv_image = cv2.cvtColor(bgr_image, cv2.COLOR_BGR2HSV)
+
+    relaxed_mask = build_green_index_mask(
+        bgr_image,
+        hsv_image,
+        AnalysisSettings(green_dominance_margin=0, green_index_min=-5),
+    )
+    strict_mask = build_green_index_mask(
+        bgr_image,
+        hsv_image,
+        AnalysisSettings(green_dominance_margin=25, green_index_min=-5),
+    )
+
+    assert relaxed_mask[0, 0] == 255
+    assert strict_mask[0, 0] == 0
+    assert strict_mask[0, 1] == 255
+
+
 def test_pale_leaf_expansion_only_adds_pixels_near_green_seed() -> None:
     bgr_image = np.full((5, 8, 3), [90, 76, 48], dtype=np.uint8)
     bgr_image[2, 1] = [35, 95, 35]
@@ -181,6 +201,33 @@ def test_pale_leaf_expansion_only_adds_pixels_near_green_seed() -> None:
 
     assert mask[2, 3] == 255
     assert mask[2, 7] == 0
+
+
+def test_pale_leaf_expansion_respects_strict_green_settings() -> None:
+    bgr_image = np.full((7, 9, 3), [70, 76, 70], dtype=np.uint8)
+    bgr_image[3, 1] = [35, 95, 35]
+    bgr_image[2:5, 2:6] = [74, 80, 74]
+    hsv_image = cv2.cvtColor(bgr_image, cv2.COLOR_BGR2HSV)
+    seed_mask = np.zeros((7, 9), dtype=np.uint8)
+    seed_mask[3, 1] = 255
+
+    relaxed_mask = build_pale_leaf_expansion_mask(
+        bgr_image,
+        hsv_image,
+        seed_mask,
+        expansion_px=4,
+        settings=AnalysisSettings(green_dominance_margin=0, green_index_min=-5),
+    )
+    strict_mask = build_pale_leaf_expansion_mask(
+        bgr_image,
+        hsv_image,
+        seed_mask,
+        expansion_px=4,
+        settings=AnalysisSettings(green_dominance_margin=30, green_index_min=80),
+    )
+
+    assert relaxed_mask[3, 4] == 255
+    assert strict_mask[3, 4] == 0
 
 
 def test_root_like_pale_components_are_removed() -> None:
