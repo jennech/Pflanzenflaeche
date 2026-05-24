@@ -363,6 +363,7 @@ class MainWindow(QMainWindow):
         dialog.setNameFilter("CSV-Dateien (*.csv)")
         dialog.setDefaultSuffix("csv")
         dialog.setOption(QFileDialog.DontConfirmOverwrite, True)
+        dialog.setOption(QFileDialog.DontUseNativeDialog, True)
         dialog.setLabelText(QFileDialog.Accept, "Speichern/anhaengen")
         if not dialog.exec():
             return ""

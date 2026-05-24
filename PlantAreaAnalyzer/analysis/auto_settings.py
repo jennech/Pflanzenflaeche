@@ -89,6 +89,8 @@ def suggest_analysis_settings(
             data_driven_settings,
             dark_leaf_high_saturation_settings(base_settings, manual_petri_circle),
             root_strict_settings(base_settings, manual_petri_circle),
+            broad_strict_leaf_settings(base_settings, manual_petri_circle),
+            contrast_strict_leaf_settings(base_settings, manual_petri_circle),
             pale_leaf_settings(base_settings, manual_petri_circle),
             pale_leaf_base_root_settings(base_settings, manual_petri_circle),
         ],
@@ -102,15 +104,33 @@ def choose_best_settings(
     base_settings: AnalysisSettings,
     candidate_settings: list[AnalysisSettings],
 ) -> AnalysisSettings:
-    scored_settings: list[tuple[float, AnalysisSettings]] = []
+    scored_settings: list[tuple[float, int, AnalysisSettings]] = []
     for settings in candidate_settings:
         mask = build_mask_for_scoring(bgr_image, hsv_image, petri_circle, settings)
-        scored_settings.append((score_mask(mask, petri_circle), settings))
+        scored_settings.append((score_mask(mask, petri_circle), int(np.count_nonzero(mask)), settings))
 
     if not scored_settings:
         return conservative_dark_leaf_settings(base_settings)
 
-    return max(scored_settings, key=lambda entry: entry[0])[1]
+    best_score, best_area, best_settings = max(scored_settings, key=lambda entry: entry[0])
+
+    strict_candidates = [
+        (score, area, settings)
+        for score, area, settings in scored_settings
+        if settings.green_dominance_margin >= 70 and area >= 5_000
+    ]
+    if best_settings.green_dominance_margin < 30 and strict_candidates:
+        strict_score, strict_area, strict_settings = max(
+            strict_candidates,
+            key=lambda entry: entry[0],
+        )
+        # A broad pale/dark mask can look plausible by area alone, but may include
+        # halos around leaves. Prefer the stricter green candidate when it captures
+        # a substantial leaf signal and the broad mask is much larger.
+        if best_area > strict_area * 1.7 and strict_score > best_score * 0.45:
+            return strict_settings
+
+    return best_settings
 
 
 def build_mask_for_scoring(
@@ -317,15 +337,15 @@ def dark_leaf_high_saturation_settings(
     manual_petri_circle: tuple[int, int, int] | None,
 ) -> AnalysisSettings:
     return AnalysisSettings(
-        thresholds=HSVThresholds(h_min=30, h_max=120, s_min=165, s_max=255, v_min=20),
+        thresholds=HSVThresholds(h_min=30, h_max=120, s_min=128, s_max=255, v_min=20),
         min_object_area_px=300,
         max_object_area_px=75000,
         green_dominance_margin=17,
         green_index_min=80,
         leaf_fill_px=2,
         pale_leaf_expansion_px=30,
-        root_trim_px=max(base_settings.root_trim_px, 4),
-        inner_dish_factor=min(base_settings.inner_dish_factor, 0.88),
+        root_trim_px=max(base_settings.root_trim_px, 10),
+        inner_dish_factor=min(base_settings.inner_dish_factor, 0.86),
         morphology_kernel_size=base_settings.morphology_kernel_size,
         manual_petri_circle=manual_petri_circle,
         excluded_component_points=base_settings.excluded_component_points,
@@ -346,6 +366,48 @@ def root_strict_settings(
         pale_leaf_expansion_px=14,
         root_trim_px=7,
         inner_dish_factor=min(base_settings.inner_dish_factor, 0.86),
+        morphology_kernel_size=base_settings.morphology_kernel_size,
+        manual_petri_circle=manual_petri_circle,
+        excluded_component_points=base_settings.excluded_component_points,
+    )
+
+
+def broad_strict_leaf_settings(
+    base_settings: AnalysisSettings,
+    manual_petri_circle: tuple[int, int, int] | None,
+) -> AnalysisSettings:
+    """Use broad HSV limits, then rely on strict green dominance to reject artefacts."""
+    return AnalysisSettings(
+        thresholds=HSVThresholds(h_min=38, h_max=92, s_min=0, s_max=255, v_min=0),
+        min_object_area_px=0,
+        max_object_area_px=50000,
+        green_dominance_margin=78,
+        green_index_min=80,
+        leaf_fill_px=0,
+        pale_leaf_expansion_px=15,
+        root_trim_px=max(base_settings.root_trim_px, 10),
+        inner_dish_factor=min(base_settings.inner_dish_factor, 0.86),
+        morphology_kernel_size=base_settings.morphology_kernel_size,
+        manual_petri_circle=manual_petri_circle,
+        excluded_component_points=base_settings.excluded_component_points,
+    )
+
+
+def contrast_strict_leaf_settings(
+    base_settings: AnalysisSettings,
+    manual_petri_circle: tuple[int, int, int] | None,
+) -> AnalysisSettings:
+    """Prefer compact, strongly green leaves when the medium contrast is already good."""
+    return AnalysisSettings(
+        thresholds=HSVThresholds(h_min=25, h_max=120, s_min=85, s_max=255, v_min=25),
+        min_object_area_px=240,
+        max_object_area_px=65000,
+        green_dominance_margin=80,
+        green_index_min=80,
+        leaf_fill_px=4,
+        pale_leaf_expansion_px=22,
+        root_trim_px=max(base_settings.root_trim_px, 10),
+        inner_dish_factor=min(base_settings.inner_dish_factor, 0.78),
         morphology_kernel_size=base_settings.morphology_kernel_size,
         manual_petri_circle=manual_petri_circle,
         excluded_component_points=base_settings.excluded_component_points,
