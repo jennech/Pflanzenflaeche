@@ -79,13 +79,13 @@ SLIDER_HELP: dict[str, str] = {
 PRESETS: dict[str, AnalysisSettings] = {
     "Standard": AnalysisSettings(),
     "Dunkle Blaetter": AnalysisSettings(
-        thresholds=HSVThresholds(h_min=30, h_max=115, s_min=45, s_max=255, v_min=25),
-        min_object_area_px=160,
-        max_object_area_px=50000,
-        green_dominance_margin=12,
-        green_index_min=6,
+        thresholds=HSVThresholds(h_min=30, h_max=120, s_min=150, s_max=255, v_min=20),
+        min_object_area_px=250,
+        max_object_area_px=75000,
+        green_dominance_margin=16,
+        green_index_min=70,
         leaf_fill_px=3,
-        pale_leaf_expansion_px=8,
+        pale_leaf_expansion_px=26,
         inner_dish_factor=0.88,
     ),
     "Blasse Blaetter": AnalysisSettings(
@@ -99,13 +99,13 @@ PRESETS: dict[str, AnalysisSettings] = {
         inner_dish_factor=0.86,
     ),
     "Streng gegen Wurzeln": AnalysisSettings(
-        thresholds=HSVThresholds(h_min=35, h_max=105, s_min=95, s_max=255, v_min=30),
+        thresholds=HSVThresholds(h_min=30, h_max=112, s_min=175, s_max=255, v_min=25),
         min_object_area_px=300,
         max_object_area_px=35000,
-        green_dominance_margin=24,
-        green_index_min=20,
+        green_dominance_margin=22,
+        green_index_min=80,
         leaf_fill_px=2,
-        pale_leaf_expansion_px=4,
+        pale_leaf_expansion_px=12,
         inner_dish_factor=0.86,
     ),
 }

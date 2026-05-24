@@ -194,7 +194,7 @@ Die Regler unter `Segmentierung` steuern, wie streng die App gruene Flaechen erk
 
 Bevor du einzelne Regler lange suchst, nutze zuerst:
 
-- `Werte vorschlagen`: analysiert das aktuelle Bild und setzt automatisch brauchbare Startwerte.
+- `Werte vorschlagen`: probiert mehrere Segmentierungsstrategien und waehlt die plausibelste Maske als Startpunkt.
 - Preset `Dunkle Blaetter`: fuer dunkles Medium und wenig leuchtendes Gruen.
 - Preset `Blasse Blaetter`: fuer helle oder gelbliche Blattbereiche.
 - Preset `Streng gegen Wurzeln`: wenn Wurzeln, helle Saeume oder Medium zu stark erkannt werden.
