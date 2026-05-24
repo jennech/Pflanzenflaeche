@@ -41,6 +41,7 @@ def build_guided_settings(
         settings = replace(
             settings,
             pale_leaf_expansion_px=max(settings.pale_leaf_expansion_px, 12),
+            root_trim_px=max(settings.root_trim_px, 7),
         )
     elif pale_leaves_missing:
         settings = replace(

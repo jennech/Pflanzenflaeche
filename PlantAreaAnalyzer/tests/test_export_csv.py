@@ -28,6 +28,7 @@ def test_export_analysis_to_csv_writes_header_and_appends(tmp_path: Path) -> Non
         green_index_min=3,
         leaf_fill_px=2,
         pale_leaf_expansion_px=5,
+        root_trim_px=6,
         inner_dish_factor=0.75,
         morphology_kernel_size=3,
         manual_petri_circle=(100, 120, 80),
@@ -60,5 +61,6 @@ def test_export_analysis_to_csv_writes_header_and_appends(tmp_path: Path) -> Non
     assert rows[0]["petri_center_x"] == "100"
     assert rows[0]["inner_dish_percent"] == "75.0"
     assert rows[0]["h_min"] == "10"
+    assert rows[0]["root_trim_px"] == "6"
     assert json.loads(rows[0]["manual_petri_circle"]) == [100, 120, 80]
     assert json.loads(rows[0]["excluded_component_points"]) == [[5, 6], [7, 8]]

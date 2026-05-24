@@ -72,6 +72,10 @@ SLIDER_HELP: dict[str, str] = {
         "Ergaenzt blasse/gelbliche Blattteile nur in der Naehe sicher erkannter gruener "
         "Pixel. Hoeher = mehr helle Blattteile, aber auch mehr Risiko fuer Wurzeln."
     ),
+    "root_trim_px": (
+        "Schneidet duenne wurzelartige Anhaenge nach der Farberkennung ab. Hoeher = "
+        "mehr Wurzelreste weg; zu hoch kann Blattzipfel oder kleine Blattteile kuerzen."
+    ),
     "inner_dish_percent": (
         "Radius des wirklich ausgewerteten Innenbereichs. Niedriger = Rand, Glas, "
         "Schatten und Farbsaeume werden ausgeschlossen. Der blaue gestrichelte Kreis "
@@ -99,6 +103,7 @@ PRESETS: dict[str, AnalysisSettings] = {
         green_index_min=70,
         leaf_fill_px=3,
         pale_leaf_expansion_px=10,
+        root_trim_px=6,
         inner_dish_factor=0.86,
     ),
     "Blasse Blaetter": AnalysisSettings(
@@ -109,6 +114,7 @@ PRESETS: dict[str, AnalysisSettings] = {
         green_index_min=0,
         leaf_fill_px=4,
         pale_leaf_expansion_px=16,
+        root_trim_px=3,
         inner_dish_factor=0.86,
     ),
     "Streng gegen Wurzeln": AnalysisSettings(
@@ -119,6 +125,7 @@ PRESETS: dict[str, AnalysisSettings] = {
         green_index_min=65,
         leaf_fill_px=3,
         pale_leaf_expansion_px=8,
+        root_trim_px=7,
         inner_dish_factor=0.86,
     ),
 }
@@ -150,7 +157,8 @@ class SettingsPanel(QGroupBox):
         self._add_slider(slider_grid, "Gruen-Index", "green_index_min", -30, 80, 8, 9)
         self._add_slider(slider_grid, "Blatt-Fuell.", "leaf_fill_px", 0, 16, 2, 10)
         self._add_slider(slider_grid, "Blass-Erweit.", "pale_leaf_expansion_px", 0, 45, 12, 11)
-        self._add_slider(slider_grid, "Innenradius %", "inner_dish_percent", 75, 100, 90, 12)
+        self._add_slider(slider_grid, "Wurzel-Trim", "root_trim_px", 0, 10, 4, 12)
+        self._add_slider(slider_grid, "Innenradius %", "inner_dish_percent", 75, 100, 90, 13)
 
         reset_button = QPushButton("Standardwerte")
         reset_button.setToolTip(
@@ -191,6 +199,7 @@ class SettingsPanel(QGroupBox):
             green_index_min=self._value("green_index_min"),
             leaf_fill_px=self._value("leaf_fill_px"),
             pale_leaf_expansion_px=self._value("pale_leaf_expansion_px"),
+            root_trim_px=self._value("root_trim_px"),
             inner_dish_factor=self._value("inner_dish_percent") / 100.0,
             manual_petri_circle=manual_petri_circle,
             excluded_component_points=excluded_component_points,
@@ -249,6 +258,7 @@ class SettingsPanel(QGroupBox):
             "green_index_min": settings.green_index_min,
             "leaf_fill_px": settings.leaf_fill_px,
             "pale_leaf_expansion_px": settings.pale_leaf_expansion_px,
+            "root_trim_px": settings.root_trim_px,
             "inner_dish_percent": int(round(settings.inner_dish_factor * 100)),
         }
 

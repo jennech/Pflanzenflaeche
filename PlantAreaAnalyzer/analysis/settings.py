@@ -31,6 +31,7 @@ class AnalysisSettings:
     green_index_min: int = 8
     leaf_fill_px: int = 2
     pale_leaf_expansion_px: int = 12
+    root_trim_px: int = 4
     inner_dish_factor: float = 0.90
     morphology_kernel_size: int = 3
     manual_petri_circle: tuple[int, int, int] | None = None

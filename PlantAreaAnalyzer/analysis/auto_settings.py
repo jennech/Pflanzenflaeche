@@ -72,6 +72,7 @@ def suggest_analysis_settings(
         green_index_min=clamp_int(percentile(excess_green, 25) - 8, -20, 80),
         leaf_fill_px=3,
         pale_leaf_expansion_px=8,
+        root_trim_px=base_settings.root_trim_px,
         inner_dish_factor=base_settings.inner_dish_factor,
         morphology_kernel_size=base_settings.morphology_kernel_size,
         manual_petri_circle=manual_petri_circle,
@@ -153,7 +154,7 @@ def build_mask_for_scoring(
         min_area_px=settings.min_object_area_px,
         max_area_px=settings.max_object_area_px,
     )
-    return suppress_thin_protrusions(cleaned_mask)
+    return suppress_thin_protrusions(cleaned_mask, settings.root_trim_px)
 
 
 def score_mask(mask: np.ndarray, petri_circle: PetriCircle) -> float:
@@ -273,6 +274,7 @@ def conservative_dark_leaf_settings(base_settings: AnalysisSettings) -> Analysis
         green_index_min=10,
         leaf_fill_px=3,
         pale_leaf_expansion_px=6,
+        root_trim_px=base_settings.root_trim_px,
         inner_dish_factor=base_settings.inner_dish_factor,
         morphology_kernel_size=base_settings.morphology_kernel_size,
         manual_petri_circle=base_settings.manual_petri_circle,
@@ -300,6 +302,7 @@ def stricter_root_variant(
         green_index_min=max(base_settings.green_index_min, 80),
         leaf_fill_px=min(base_settings.leaf_fill_px, 3),
         pale_leaf_expansion_px=min(base_settings.pale_leaf_expansion_px, 14),
+        root_trim_px=max(base_settings.root_trim_px, 6),
         inner_dish_factor=min(base_settings.inner_dish_factor, 0.86),
         morphology_kernel_size=base_settings.morphology_kernel_size,
         manual_petri_circle=manual_petri_circle,
@@ -319,6 +322,7 @@ def dark_leaf_high_saturation_settings(
         green_index_min=80,
         leaf_fill_px=2,
         pale_leaf_expansion_px=30,
+        root_trim_px=max(base_settings.root_trim_px, 4),
         inner_dish_factor=min(base_settings.inner_dish_factor, 0.88),
         morphology_kernel_size=base_settings.morphology_kernel_size,
         manual_petri_circle=manual_petri_circle,
@@ -338,6 +342,7 @@ def root_strict_settings(
         green_index_min=80,
         leaf_fill_px=2,
         pale_leaf_expansion_px=14,
+        root_trim_px=7,
         inner_dish_factor=min(base_settings.inner_dish_factor, 0.86),
         morphology_kernel_size=base_settings.morphology_kernel_size,
         manual_petri_circle=manual_petri_circle,
@@ -357,6 +362,7 @@ def pale_leaf_settings(
         green_index_min=45,
         leaf_fill_px=4,
         pale_leaf_expansion_px=22,
+        root_trim_px=max(base_settings.root_trim_px, 3),
         inner_dish_factor=min(base_settings.inner_dish_factor, 0.86),
         morphology_kernel_size=base_settings.morphology_kernel_size,
         manual_petri_circle=manual_petri_circle,

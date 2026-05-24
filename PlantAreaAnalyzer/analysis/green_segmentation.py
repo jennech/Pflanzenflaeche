@@ -82,7 +82,7 @@ def analyze_green_area(
         min_area_px=settings.min_object_area_px,
         max_area_px=settings.max_object_area_px,
     )
-    cleaned_mask = suppress_thin_protrusions(cleaned_mask)
+    cleaned_mask = suppress_thin_protrusions(cleaned_mask, settings.root_trim_px)
     cleaned_mask = remove_components_at_points(
         cleaned_mask,
         settings.excluded_component_points,
@@ -295,7 +295,7 @@ def fill_enclosed_holes(mask: np.ndarray, max_hole_area_px: int) -> np.ndarray:
     return filled
 
 
-def suppress_thin_protrusions(mask: np.ndarray) -> np.ndarray:
+def suppress_thin_protrusions(mask: np.ndarray, root_trim_px: int = 4) -> np.ndarray:
     """Trim narrow root-like appendages while preserving compact leaf regions."""
 
     if not np.any(mask):
@@ -306,13 +306,20 @@ def suppress_thin_protrusions(mask: np.ndarray) -> np.ndarray:
     if not np.any(opened):
         return mask
 
-    opened = trim_long_appendages(opened)
+    opened = trim_long_appendages(opened, root_trim_px)
     opened = fill_enclosed_holes(opened, max_hole_area_px=1200)
     return cv2.bitwise_or(opened, keep_compact_leaf_components(mask, opened))
 
 
-def trim_long_appendages(mask: np.ndarray) -> np.ndarray:
+def trim_long_appendages(mask: np.ndarray, root_trim_px: int = 4) -> np.ndarray:
     """Keep component cores and nearby lobes, but drop long thin attached tails."""
+
+    if root_trim_px <= 0:
+        return mask
+
+    trim_strength = max(1, root_trim_px)
+    core_distance_px = 2.8 + (trim_strength * 0.3)
+    regrow_radius_px = max(4, 10 - trim_strength)
 
     num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(mask, 8)
     trimmed = np.zeros_like(mask)
@@ -325,7 +332,7 @@ def trim_long_appendages(mask: np.ndarray) -> np.ndarray:
             continue
 
         distance = cv2.distanceTransform(component, cv2.DIST_L2, 5)
-        core = (distance >= 4.0).astype(np.uint8) * 255
+        core = (distance >= core_distance_px).astype(np.uint8) * 255
         if not np.any(core):
             if is_compact_component(stats[label]):
                 trimmed[component > 0] = 255
@@ -333,7 +340,11 @@ def trim_long_appendages(mask: np.ndarray) -> np.ndarray:
 
         # Re-grow from the thick core only a limited distance. Leaf lobes return,
         # long root-like hooks stay outside.
-        regrow_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (17, 17))
+        kernel_size = (regrow_radius_px * 2) + 1
+        regrow_kernel = cv2.getStructuringElement(
+            cv2.MORPH_ELLIPSE,
+            (kernel_size, kernel_size),
+        )
         regrown = cv2.dilate(core, regrow_kernel)
         regrown = cv2.bitwise_and(regrown, component)
         trimmed[regrown > 0] = 255

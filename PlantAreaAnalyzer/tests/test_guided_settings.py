@@ -15,6 +15,7 @@ def test_guided_settings_prefers_dark_root_preset() -> None:
     assert preset_name == "Dunkle Blaetter + Wurzeln streng"
     assert settings.thresholds.s_min >= 150
     assert settings.green_dominance_margin >= 20
+    assert settings.root_trim_px >= 6
 
 
 def test_guided_settings_combines_pale_and_root_constraints() -> None:
@@ -28,6 +29,7 @@ def test_guided_settings_combines_pale_and_root_constraints() -> None:
 
     assert preset_name == "Streng gegen Wurzeln"
     assert settings.pale_leaf_expansion_px >= 12
+    assert settings.root_trim_px >= 7
     assert settings.min_object_area_px > 300
     assert settings.inner_dish_factor <= 0.84
 
