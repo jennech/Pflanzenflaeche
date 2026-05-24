@@ -198,13 +198,15 @@ def build_pale_leaf_expansion_mask(
     hue = hsv_image[:, :, 0]
     saturation = hsv_image[:, :, 1]
     value = hsv_image[:, :, 2]
+    saturation_limit = 145 if expansion_px >= 22 else 115
+    channel_tolerance = 18 if expansion_px >= 22 else 12
 
     faint_green_or_pale = (
-        (green >= red - 12)
-        & (green >= blue - 12)
-        & (hue >= 25)
-        & (hue <= 105)
-        & (saturation <= 115)
+        (green >= red - channel_tolerance)
+        & (green >= blue - channel_tolerance)
+        & (hue >= 20)
+        & (hue <= 115)
+        & (saturation <= saturation_limit)
         & (value >= 45)
         & (value <= 235)
     )

@@ -117,6 +117,17 @@ PRESETS: dict[str, AnalysisSettings] = {
         root_trim_px=3,
         inner_dish_factor=0.86,
     ),
+    "Blasse Blattbasis + Wurzeln streng": AnalysisSettings(
+        thresholds=HSVThresholds(h_min=25, h_max=120, s_min=65, s_max=255, v_min=25),
+        min_object_area_px=300,
+        max_object_area_px=60000,
+        green_dominance_margin=0,
+        green_index_min=20,
+        leaf_fill_px=1,
+        pale_leaf_expansion_px=28,
+        root_trim_px=8,
+        inner_dish_factor=0.86,
+    ),
     "Streng gegen Wurzeln": AnalysisSettings(
         thresholds=HSVThresholds(h_min=30, h_max=120, s_min=150, s_max=255, v_min=25),
         min_object_area_px=300,

@@ -23,7 +23,9 @@ def build_guided_settings(
     rim_artifacts: bool,
 ) -> tuple[str, AnalysisSettings]:
     """Return a preset-like recommendation from beginner-friendly questions."""
-    if dark_medium and roots_or_halos:
+    if roots_or_halos and pale_leaves_missing:
+        preset_name = "Blasse Blattbasis + Wurzeln streng"
+    elif dark_medium and roots_or_halos:
         preset_name = "Dunkle Blaetter + Wurzeln streng"
     elif dark_medium:
         preset_name = "Dunkle Blaetter"
@@ -37,14 +39,11 @@ def build_guided_settings(
     settings = PRESETS[preset_name]
 
     if pale_leaves_missing and roots_or_halos:
-        # Controlled expansion: recover pale leaf parts without opening the door too far.
+        # Controlled expansion: recover pale leaf bases without opening the door too far.
         settings = replace(
             settings,
-            green_dominance_margin=min(settings.green_dominance_margin, 10),
-            green_index_min=max(settings.green_index_min, 80),
-            leaf_fill_px=0,
-            pale_leaf_expansion_px=max(settings.pale_leaf_expansion_px, 18),
-            root_trim_px=max(settings.root_trim_px, 10),
+            pale_leaf_expansion_px=max(settings.pale_leaf_expansion_px, 28),
+            root_trim_px=max(settings.root_trim_px, 8),
         )
     elif roots_or_halos:
         settings = replace(
@@ -91,7 +90,7 @@ class GuidedSettingsDialog(QDialog):
             "Wurzeln, helle Saeume oder Medium werden faelschlich mit erkannt."
         )
         self.pale_leaves_checkbox = QCheckBox(
-            "Blasse/gelbliche Blattteile fehlen in der Maske."
+            "Blasse/gelbliche Blattteile oder graugruene Blattbasis fehlen."
         )
         self.small_noise_checkbox = QCheckBox(
             "Viele kleine Stoerpunkte oder Kruemel werden erkannt."

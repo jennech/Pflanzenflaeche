@@ -30,10 +30,11 @@ def test_guided_settings_combines_pale_and_root_constraints() -> None:
         rim_artifacts=True,
     )
 
-    assert preset_name == "Streng gegen Wurzeln"
-    assert settings.leaf_fill_px == 0
-    assert settings.pale_leaf_expansion_px >= 18
-    assert settings.root_trim_px >= 10
+    assert preset_name == "Blasse Blattbasis + Wurzeln streng"
+    assert settings.thresholds.s_min <= 80
+    assert settings.green_dominance_margin == 0
+    assert settings.pale_leaf_expansion_px >= 28
+    assert settings.root_trim_px >= 8
     assert settings.min_object_area_px > 300
     assert settings.inner_dish_factor <= 0.84
 
