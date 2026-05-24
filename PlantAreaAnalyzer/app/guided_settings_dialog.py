@@ -40,7 +40,7 @@ def build_guided_settings(
         # Controlled expansion: recover pale leaf parts without opening the door too far.
         settings = replace(
             settings,
-            pale_leaf_expansion_px=max(settings.pale_leaf_expansion_px, 16),
+            pale_leaf_expansion_px=max(settings.pale_leaf_expansion_px, 12),
         )
     elif pale_leaves_missing:
         settings = replace(

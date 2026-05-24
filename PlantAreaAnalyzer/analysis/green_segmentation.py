@@ -306,8 +306,39 @@ def suppress_thin_protrusions(mask: np.ndarray) -> np.ndarray:
     if not np.any(opened):
         return mask
 
+    opened = trim_long_appendages(opened)
     opened = fill_enclosed_holes(opened, max_hole_area_px=1200)
     return cv2.bitwise_or(opened, keep_compact_leaf_components(mask, opened))
+
+
+def trim_long_appendages(mask: np.ndarray) -> np.ndarray:
+    """Keep component cores and nearby lobes, but drop long thin attached tails."""
+
+    num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(mask, 8)
+    trimmed = np.zeros_like(mask)
+
+    for label in range(1, num_labels):
+        area = stats[label, cv2.CC_STAT_AREA]
+        component = (labels == label).astype(np.uint8) * 255
+        if area < 180:
+            trimmed[component > 0] = 255
+            continue
+
+        distance = cv2.distanceTransform(component, cv2.DIST_L2, 5)
+        core = (distance >= 4.0).astype(np.uint8) * 255
+        if not np.any(core):
+            if is_compact_component(stats[label]):
+                trimmed[component > 0] = 255
+            continue
+
+        # Re-grow from the thick core only a limited distance. Leaf lobes return,
+        # long root-like hooks stay outside.
+        regrow_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (17, 17))
+        regrown = cv2.dilate(core, regrow_kernel)
+        regrown = cv2.bitwise_and(regrown, component)
+        trimmed[regrown > 0] = 255
+
+    return trimmed
 
 
 def keep_compact_leaf_components(mask: np.ndarray, core_mask: np.ndarray) -> np.ndarray:
@@ -320,16 +351,20 @@ def keep_compact_leaf_components(mask: np.ndarray, core_mask: np.ndarray) -> np.
         if np.any(core_mask[component] > 0):
             continue
 
-        area = stats[label, cv2.CC_STAT_AREA]
-        width = stats[label, cv2.CC_STAT_WIDTH]
-        height = stats[label, cv2.CC_STAT_HEIGHT]
-        short_side = max(1, min(width, height))
-        long_side = max(width, height)
-        fill_ratio = area / max(1, width * height)
-        if area >= 80 and long_side / short_side <= 2.8 and fill_ratio >= 0.35:
+        if is_compact_component(stats[label], min_area=80):
             restored[component] = 255
 
     return restored
+
+
+def is_compact_component(stats_row: np.ndarray, min_area: int = 80) -> bool:
+    area = stats_row[cv2.CC_STAT_AREA]
+    width = stats_row[cv2.CC_STAT_WIDTH]
+    height = stats_row[cv2.CC_STAT_HEIGHT]
+    short_side = max(1, min(width, height))
+    long_side = max(width, height)
+    fill_ratio = area / max(1, width * height)
+    return bool(area >= min_area and long_side / short_side <= 2.8 and fill_ratio >= 0.35)
 
 
 def filter_small_components(mask: np.ndarray, min_area_px: int) -> np.ndarray:

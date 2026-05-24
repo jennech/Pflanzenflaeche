@@ -7,6 +7,7 @@ from analysis.green_segmentation import filter_components_by_area
 from analysis.green_segmentation import filter_small_components
 from analysis.green_segmentation import fill_leaf_gaps
 from analysis.green_segmentation import suppress_thin_protrusions
+from analysis.green_segmentation import trim_long_appendages
 from analysis.green_segmentation import nearest_component_label
 from analysis.green_segmentation import remove_components_at_points
 from analysis.green_segmentation import suppress_root_like_components
@@ -79,6 +80,19 @@ def test_suppress_thin_protrusions_removes_root_like_appendage() -> None:
 
     assert filtered[18, 14] == 255
     assert filtered[18, 34] == 0
+
+
+def test_trim_long_appendages_keeps_leaf_lobes_but_removes_long_tail() -> None:
+    mask = np.zeros((80, 90), dtype=np.uint8)
+    cv2.circle(mask, (28, 40), 14, 255, -1)
+    cv2.circle(mask, (40, 32), 7, 255, -1)
+    cv2.line(mask, (42, 42), (78, 58), 255, 5)
+
+    filtered = trim_long_appendages(mask)
+
+    assert filtered[40, 28] == 255
+    assert filtered[32, 40] == 255
+    assert filtered[56, 74] == 0
 
 
 def test_remove_components_at_points_removes_touched_component() -> None:
