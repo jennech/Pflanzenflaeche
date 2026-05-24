@@ -217,9 +217,52 @@ def build_pale_leaf_expansion_mask(
         & (green >= red - 20)
         & (green >= blue - 20)
     )
-    candidate = (faint_green_or_pale | pale_low_saturation)
-    pale_mask = ((candidate & (nearby_seed > 0)).astype(np.uint8)) * 255
-    return suppress_root_like_components(pale_mask)
+    candidate = ((faint_green_or_pale | pale_low_saturation).astype(np.uint8)) * 255
+    pale_mask = cv2.bitwise_and(candidate, nearby_seed)
+    seeded_mask = keep_seeded_leaf_expansion_components(
+        pale_mask,
+        seed_mask,
+        expansion_px,
+    )
+    return suppress_root_like_components(seeded_mask)
+
+
+def keep_seeded_leaf_expansion_components(
+    expansion_mask: np.ndarray,
+    seed_mask: np.ndarray,
+    expansion_px: int,
+) -> np.ndarray:
+    """Keep pale additions that are plausibly attached to real leaf seeds."""
+
+    if not np.any(expansion_mask):
+        return expansion_mask
+
+    contact_radius = max(2, min(10, expansion_px // 3))
+    contact_kernel = cv2.getStructuringElement(
+        cv2.MORPH_ELLIPSE,
+        ((contact_radius * 2) + 1, (contact_radius * 2) + 1),
+    )
+    seed_contact = cv2.dilate(seed_mask, contact_kernel)
+
+    num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(expansion_mask, 8)
+    filtered = np.zeros_like(expansion_mask)
+
+    for label in range(1, num_labels):
+        component = labels == label
+        touches_seed = np.any(seed_contact[component] > 0)
+        if not touches_seed:
+            continue
+
+        area = stats[label, cv2.CC_STAT_AREA]
+        if area < 4:
+            continue
+
+        if is_root_like_component(stats[label]):
+            continue
+
+        filtered[component] = 255
+
+    return filtered
 
 
 def suppress_root_like_components(mask: np.ndarray) -> np.ndarray:
@@ -229,22 +272,30 @@ def suppress_root_like_components(mask: np.ndarray) -> np.ndarray:
     filtered = np.zeros_like(mask)
 
     for label in range(1, num_labels):
-        area = stats[label, cv2.CC_STAT_AREA]
-        width = stats[label, cv2.CC_STAT_WIDTH]
-        height = stats[label, cv2.CC_STAT_HEIGHT]
-        short_side = max(1, min(width, height))
-        long_side = max(width, height)
-        aspect_ratio = long_side / short_side
-        fill_ratio = area / max(1, width * height)
-
-        if aspect_ratio >= 4.5 and fill_ratio <= 0.45:
-            continue
-        if short_side <= 2 and long_side >= 8:
+        if is_root_like_component(stats[label]):
             continue
 
         filtered[labels == label] = 255
 
     return filtered
+
+
+def is_root_like_component(stats_row: np.ndarray) -> bool:
+    area = stats_row[cv2.CC_STAT_AREA]
+    width = stats_row[cv2.CC_STAT_WIDTH]
+    height = stats_row[cv2.CC_STAT_HEIGHT]
+    short_side = max(1, min(width, height))
+    long_side = max(width, height)
+    aspect_ratio = long_side / short_side
+    fill_ratio = area / max(1, width * height)
+
+    if aspect_ratio >= 4.5 and fill_ratio <= 0.45:
+        return True
+    if short_side <= 2 and long_side >= 8:
+        return True
+    if area < 220 and aspect_ratio >= 3.0 and fill_ratio <= 0.35:
+        return True
+    return False
 
 
 def fill_leaf_gaps(mask: np.ndarray, fill_px: int) -> np.ndarray:

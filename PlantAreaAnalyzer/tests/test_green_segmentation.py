@@ -1,6 +1,7 @@
 import numpy as np
 
 from analysis.green_segmentation import build_pale_leaf_expansion_mask
+from analysis.green_segmentation import keep_seeded_leaf_expansion_components
 from analysis.green_segmentation import build_green_index_mask
 from analysis.green_segmentation import build_green_dominance_mask
 from analysis.green_segmentation import filter_components_by_area
@@ -191,6 +192,40 @@ def test_root_like_pale_components_are_removed() -> None:
 
     assert filtered[2, 8] == 0
     assert filtered[8, 6] == 255
+
+
+def test_seeded_leaf_expansion_requires_seed_contact() -> None:
+    expansion_mask = np.zeros((24, 36), dtype=np.uint8)
+    seed_mask = np.zeros_like(expansion_mask)
+    seed_mask[10:13, 10:13] = 255
+    expansion_mask[9:15, 9:16] = 255
+    expansion_mask[9:15, 26:33] = 255
+
+    filtered = keep_seeded_leaf_expansion_components(
+        expansion_mask,
+        seed_mask,
+        expansion_px=8,
+    )
+
+    assert filtered[11, 12] == 255
+    assert filtered[11, 29] == 0
+
+
+def test_seeded_leaf_expansion_rejects_root_like_component() -> None:
+    expansion_mask = np.zeros((24, 40), dtype=np.uint8)
+    seed_mask = np.zeros_like(expansion_mask)
+    seed_mask[12, 5:8] = 255
+    cv2.line(expansion_mask, (7, 12), (32, 12), 255, 1)
+    expansion_mask[4:10, 5:12] = 255
+
+    filtered = keep_seeded_leaf_expansion_components(
+        expansion_mask,
+        seed_mask,
+        expansion_px=10,
+    )
+
+    assert filtered[7, 8] == 255
+    assert filtered[12, 28] == 0
 
 
 def test_pale_leaf_expansion_can_be_disabled() -> None:
