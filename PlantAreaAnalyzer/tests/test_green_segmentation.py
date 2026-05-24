@@ -11,6 +11,7 @@ from analysis.green_segmentation import suppress_thin_protrusions
 from analysis.green_segmentation import trim_long_appendages
 from analysis.green_segmentation import nearest_component_label
 from analysis.green_segmentation import remove_components_at_points
+from analysis.green_segmentation import add_leaf_area_at_points
 from analysis.green_segmentation import suppress_root_like_components
 from analysis.settings import AnalysisSettings
 
@@ -114,6 +115,15 @@ def test_remove_components_at_points_uses_nearby_component() -> None:
     filtered = remove_components_at_points(mask, ((4, 6),), search_radius_px=2)
 
     assert filtered[6, 6] == 0
+
+
+def test_add_leaf_area_at_points_adds_small_manual_patch() -> None:
+    mask = np.zeros((20, 20), dtype=np.uint8)
+
+    corrected = add_leaf_area_at_points(mask, ((10, 10),), radius_px=3)
+
+    assert corrected[10, 10] == 255
+    assert corrected[10, 14] == 0
 
 
 def test_nearest_component_label_ignores_far_components() -> None:

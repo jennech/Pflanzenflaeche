@@ -40,6 +40,8 @@ CSV_FIELDNAMES = [
     "morphology_kernel_size",
     "manual_petri_circle",
     "excluded_component_points",
+    "manual_leaf_points",
+    "manual_leaf_radius_px",
 ]
 
 
@@ -105,4 +107,6 @@ def build_export_row(
         "morphology_kernel_size": settings.morphology_kernel_size,
         "manual_petri_circle": json.dumps(settings.manual_petri_circle),
         "excluded_component_points": json.dumps(settings.excluded_component_points),
+        "manual_leaf_points": json.dumps(settings.manual_leaf_points),
+        "manual_leaf_radius_px": settings.manual_leaf_radius_px,
     }

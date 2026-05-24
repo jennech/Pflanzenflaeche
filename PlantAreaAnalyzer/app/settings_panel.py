@@ -201,6 +201,7 @@ class SettingsPanel(QGroupBox):
         self,
         manual_petri_circle: tuple[int, int, int] | None = None,
         excluded_component_points: tuple[tuple[int, int], ...] = (),
+        manual_leaf_points: tuple[tuple[int, int], ...] = (),
     ) -> AnalysisSettings:
         return AnalysisSettings(
             thresholds=self.thresholds(),
@@ -214,6 +215,7 @@ class SettingsPanel(QGroupBox):
             inner_dish_factor=self._value("inner_dish_percent") / 100.0,
             manual_petri_circle=manual_petri_circle,
             excluded_component_points=excluded_component_points,
+            manual_leaf_points=manual_leaf_points,
         )
 
     def inner_dish_factor(self) -> float:

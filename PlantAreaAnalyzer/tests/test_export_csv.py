@@ -33,6 +33,8 @@ def test_export_analysis_to_csv_writes_header_and_appends(tmp_path: Path) -> Non
         morphology_kernel_size=3,
         manual_petri_circle=(100, 120, 80),
         excluded_component_points=((5, 6), (7, 8)),
+        manual_leaf_points=((9, 10),),
+        manual_leaf_radius_px=14,
     )
 
     export_analysis_to_csv(
@@ -64,3 +66,5 @@ def test_export_analysis_to_csv_writes_header_and_appends(tmp_path: Path) -> Non
     assert rows[0]["root_trim_px"] == "6"
     assert json.loads(rows[0]["manual_petri_circle"]) == [100, 120, 80]
     assert json.loads(rows[0]["excluded_component_points"]) == [[5, 6], [7, 8]]
+    assert json.loads(rows[0]["manual_leaf_points"]) == [[9, 10]]
+    assert rows[0]["manual_leaf_radius_px"] == "14"

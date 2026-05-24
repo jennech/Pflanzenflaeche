@@ -18,6 +18,7 @@ class ImageViewer(QGraphicsView):
 
     circle_selected = Signal(object)
     point_selected = Signal(object)
+    add_point_selected = Signal(object)
 
     def __init__(self, placeholder_text: str) -> None:
         super().__init__()
@@ -40,12 +41,14 @@ class ImageViewer(QGraphicsView):
         self._circle_item: Optional[QGraphicsEllipseItem] = None
         self._inner_circle_item: Optional[QGraphicsEllipseItem] = None
         self._exclusion_items: list[QGraphicsEllipseItem] = []
+        self._addition_items: list[QGraphicsEllipseItem] = []
         self._pixmap: Optional[QPixmap] = None
         self._placeholder_text = placeholder_text
         self._zoom_factor = 1.0
         self._circle_visible = False
         self._manual_circle_enabled = False
         self._exclusion_mode_enabled = False
+        self._addition_mode_enabled = False
         self._drag_start: Optional[QPointF] = None
         self._pending_circle_center: Optional[QPointF] = None
         self._show_placeholder()
@@ -60,6 +63,7 @@ class ImageViewer(QGraphicsView):
             self._circle_item = None
             self._inner_circle_item = None
             self._exclusion_items = []
+            self._addition_items = []
             self._pixmap_item = self._scene.addPixmap(self._pixmap)
         else:
             self._pixmap_item.setPixmap(self._pixmap)
@@ -139,6 +143,18 @@ class ImageViewer(QGraphicsView):
             item.setZValue(20)
             self._exclusion_items.append(item)
 
+    def set_addition_points(self, points: list[tuple[int, int]]) -> None:
+        self._clear_addition_points()
+        if self._pixmap_item is None:
+            return
+
+        pen = QPen(QColor(0, 210, 120), 3)
+        for center_x, center_y in points:
+            rect = QRectF(center_x - 7, center_y - 7, 14, 14)
+            item = self._scene.addEllipse(rect, pen)
+            item.setZValue(21)
+            self._addition_items.append(item)
+
     def set_petri_overlay_visible(self, visible: bool) -> None:
         self._circle_visible = visible
         if self._circle_item is not None:
@@ -151,7 +167,9 @@ class ImageViewer(QGraphicsView):
         self._drag_start = None
         self._pending_circle_center = None
         self.setDragMode(
-            QGraphicsView.NoDrag if enabled else QGraphicsView.ScrollHandDrag
+            QGraphicsView.NoDrag
+            if enabled or self._exclusion_mode_enabled or self._addition_mode_enabled
+            else QGraphicsView.ScrollHandDrag
         )
         if enabled:
             self.setToolTip(
@@ -168,12 +186,30 @@ class ImageViewer(QGraphicsView):
         self._pending_circle_center = None
         self.setDragMode(
             QGraphicsView.NoDrag
-            if enabled or self._manual_circle_enabled
+            if enabled or self._manual_circle_enabled or self._addition_mode_enabled
             else QGraphicsView.ScrollHandDrag
         )
         if enabled:
             self.setToolTip("Stoerflaeche im Bild anklicken, um sie zu entfernen")
         elif not self._manual_circle_enabled:
+            self.setToolTip(
+                "Mausrad: zoomen | Ziehen: Ausschnitt verschieben | Doppelklick: anpassen"
+            )
+
+    def set_addition_mode_enabled(self, enabled: bool) -> None:
+        self._addition_mode_enabled = enabled
+        self._drag_start = None
+        self._pending_circle_center = None
+        self.setDragMode(
+            QGraphicsView.NoDrag
+            if enabled or self._manual_circle_enabled or self._exclusion_mode_enabled
+            else QGraphicsView.ScrollHandDrag
+        )
+        if enabled:
+            self.setToolTip(
+                "Fehlende Blattflaeche anklicken, um sie als kleine Korrektur hinzuzufuegen"
+            )
+        elif not self._manual_circle_enabled and not self._exclusion_mode_enabled:
             self.setToolTip(
                 "Mausrad: zoomen | Ziehen: Ausschnitt verschieben | Doppelklick: anpassen"
             )
@@ -199,7 +235,9 @@ class ImageViewer(QGraphicsView):
         self.scale(zoom_step, zoom_step)
 
     def mousePressEvent(self, event) -> None:  # type: ignore[override]
-        if self._exclusion_mode_enabled and self._pixmap:
+        if (
+            self._exclusion_mode_enabled or self._addition_mode_enabled
+        ) and self._pixmap:
             return
         if self._manual_circle_enabled and self._pixmap:
             self._drag_start = self.mapToScene(event.position().toPoint())
@@ -221,6 +259,10 @@ class ImageViewer(QGraphicsView):
         if self._exclusion_mode_enabled and self._pixmap:
             point = self.mapToScene(event.position().toPoint())
             self.point_selected.emit((int(point.x()), int(point.y())))
+            return
+        if self._addition_mode_enabled and self._pixmap:
+            point = self.mapToScene(event.position().toPoint())
+            self.add_point_selected.emit((int(point.x()), int(point.y())))
             return
         if self._manual_circle_enabled and self._drag_start is not None:
             current = self.mapToScene(event.position().toPoint())
@@ -274,6 +316,7 @@ class ImageViewer(QGraphicsView):
         self._circle_item = None
         self._inner_circle_item = None
         self._exclusion_items = []
+        self._addition_items = []
         self._zoom_factor = 1.0
         self._scene.addText(self._placeholder_text)
 
@@ -291,6 +334,11 @@ class ImageViewer(QGraphicsView):
         for item in self._exclusion_items:
             self._scene.removeItem(item)
         self._exclusion_items = []
+
+    def _clear_addition_points(self) -> None:
+        for item in self._addition_items:
+            self._scene.removeItem(item)
+        self._addition_items = []
 
 
 def distance_between(first: QPointF, second: QPointF) -> float:

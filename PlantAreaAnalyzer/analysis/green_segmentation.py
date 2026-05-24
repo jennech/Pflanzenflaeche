@@ -88,6 +88,12 @@ def analyze_green_area(
         cleaned_mask,
         settings.excluded_component_points,
     )
+    cleaned_mask = add_leaf_area_at_points(
+        cleaned_mask,
+        settings.manual_leaf_points,
+        settings.manual_leaf_radius_px,
+    )
+    cleaned_mask = cv2.bitwise_and(cleaned_mask, dish_mask)
 
     calibration = calibrate_from_petri_diameter_px(
         pixel_diameter=float(petri_circle.radius * 2),
@@ -536,6 +542,28 @@ def remove_components_at_points(
     for label in labels_to_remove:
         filtered[labels == label] = 0
     return filtered
+
+
+def add_leaf_area_at_points(
+    mask: np.ndarray,
+    points: tuple[tuple[int, int], ...],
+    radius_px: int = 14,
+) -> np.ndarray:
+    """Add small manual leaf-area patches around clicked points."""
+
+    if not points or radius_px <= 0:
+        return mask
+
+    height, width = mask.shape
+    corrected = mask.copy()
+    radius = max(1, int(radius_px))
+    for point_x, point_y in points:
+        if point_x < 0 or point_y < 0 or point_x >= width or point_y >= height:
+            continue
+
+        cv2.circle(corrected, (point_x, point_y), radius, 255, -1)
+
+    return corrected
 
 
 def nearest_component_label(

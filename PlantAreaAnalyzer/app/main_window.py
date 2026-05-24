@@ -41,6 +41,7 @@ class MainWindow(QMainWindow):
         self.current_petri_circle: Optional[tuple[int, int, int]] = None
         self.manual_petri_circle: Optional[tuple[int, int, int]] = None
         self.excluded_component_points: list[tuple[int, int]] = []
+        self.manual_leaf_points: list[tuple[int, int]] = []
 
         load_button = QPushButton("Bild laden")
         load_button.clicked.connect(self.load_image)
@@ -59,8 +60,10 @@ class MainWindow(QMainWindow):
         self.original_viewer = ImageViewer("Noch kein Bild geladen")
         self.original_viewer.circle_selected.connect(self.set_manual_petri_circle)
         self.original_viewer.point_selected.connect(self.exclude_component_at_point)
+        self.original_viewer.add_point_selected.connect(self.add_leaf_area_at_point)
         self.result_viewer = ImageViewer("Maske oder Overlay wird hier angezeigt")
         self.result_viewer.point_selected.connect(self.exclude_component_at_point)
+        self.result_viewer.add_point_selected.connect(self.add_leaf_area_at_point)
         self.results_table = ResultsTable()
         self.settings_panel = SettingsPanel()
         self.settings_panel.settings_changed.connect(self.reanalyze_current_image)
@@ -77,6 +80,10 @@ class MainWindow(QMainWindow):
         self.exclude_component_checkbox.toggled.connect(self.toggle_exclusion_mode)
         reset_exclusions_button = QPushButton("Entfernte Flaechen zuruecksetzen")
         reset_exclusions_button.clicked.connect(self.reset_excluded_components)
+        self.add_leaf_checkbox = QCheckBox("Blattflaeche per Klick hinzufuegen")
+        self.add_leaf_checkbox.toggled.connect(self.toggle_add_leaf_mode)
+        reset_added_leaf_button = QPushButton("Hinzugefuegte Flaechen zuruecksetzen")
+        reset_added_leaf_button.clicked.connect(self.reset_added_leaf_area)
 
         self.manual_adjust_toggle = QToolButton()
         self.manual_adjust_toggle.setText("Manuelle Korrektur anzeigen")
@@ -110,6 +117,8 @@ class MainWindow(QMainWindow):
         right_layout.addWidget(self.manual_petri_checkbox)
         right_layout.addWidget(self.exclude_component_checkbox)
         right_layout.addWidget(reset_exclusions_button)
+        right_layout.addWidget(self.add_leaf_checkbox)
+        right_layout.addWidget(reset_added_leaf_button)
         right_layout.addWidget(self.manual_adjust_toggle)
         right_layout.addWidget(self.manual_adjust_panel)
         right_layout.addWidget(self.settings_panel)
@@ -271,6 +280,7 @@ class MainWindow(QMainWindow):
         self.current_petri_circle = None
         self.manual_petri_circle = None
         self.excluded_component_points = []
+        self.manual_leaf_points = []
         self.reanalyze_current_image()
 
     def reanalyze_current_image(self) -> None:
@@ -285,6 +295,7 @@ class MainWindow(QMainWindow):
                 settings=self.settings_panel.analysis_settings(
                     manual_petri_circle=self.manual_petri_circle,
                     excluded_component_points=tuple(self.excluded_component_points),
+                    manual_leaf_points=tuple(self.manual_leaf_points),
                 ),
             )
         except Exception as error:  # noqa: BLE001
@@ -302,6 +313,7 @@ class MainWindow(QMainWindow):
         )
         self.update_petri_overlay()
         self.update_exclusion_markers()
+        self.update_addition_markers()
         self.results_table.update_results(
             {
                 "Gruene Pixel": f"{result.measurement.green_pixels}",
@@ -345,6 +357,7 @@ class MainWindow(QMainWindow):
                 settings=self.settings_panel.analysis_settings(
                     manual_petri_circle=self.manual_petri_circle,
                     excluded_component_points=tuple(self.excluded_component_points),
+                    manual_leaf_points=tuple(self.manual_leaf_points),
                 ),
             )
         except Exception as error:  # noqa: BLE001
@@ -388,6 +401,7 @@ class MainWindow(QMainWindow):
                 base_settings=self.settings_panel.analysis_settings(
                     manual_petri_circle=self.manual_petri_circle,
                     excluded_component_points=tuple(self.excluded_component_points),
+                    manual_leaf_points=tuple(self.manual_leaf_points),
                 ),
                 manual_petri_circle=self.manual_petri_circle,
             )
@@ -442,6 +456,8 @@ class MainWindow(QMainWindow):
     def toggle_manual_petri_mode(self, enabled: bool) -> None:
         if enabled and self.exclude_component_checkbox.isChecked():
             self.exclude_component_checkbox.setChecked(False)
+        if enabled and self.add_leaf_checkbox.isChecked():
+            self.add_leaf_checkbox.setChecked(False)
         self.original_viewer.set_manual_circle_enabled(enabled)
         self.result_viewer.set_manual_circle_enabled(False)
         if not enabled:
@@ -451,11 +467,25 @@ class MainWindow(QMainWindow):
     def toggle_exclusion_mode(self, enabled: bool) -> None:
         if enabled and self.manual_petri_checkbox.isChecked():
             self.manual_petri_checkbox.setChecked(False)
+        if enabled and self.add_leaf_checkbox.isChecked():
+            self.add_leaf_checkbox.setChecked(False)
         self.original_viewer.set_exclusion_mode_enabled(enabled)
         self.result_viewer.set_exclusion_mode_enabled(enabled)
 
+    def toggle_add_leaf_mode(self, enabled: bool) -> None:
+        if enabled and self.manual_petri_checkbox.isChecked():
+            self.manual_petri_checkbox.setChecked(False)
+        if enabled and self.exclude_component_checkbox.isChecked():
+            self.exclude_component_checkbox.setChecked(False)
+        self.original_viewer.set_addition_mode_enabled(enabled)
+        self.result_viewer.set_addition_mode_enabled(enabled)
+
     def exclude_component_at_point(self, point: tuple[int, int]) -> None:
         self.excluded_component_points.append(point)
+        self.reanalyze_current_image()
+
+    def add_leaf_area_at_point(self, point: tuple[int, int]) -> None:
+        self.manual_leaf_points.append(point)
         self.reanalyze_current_image()
 
     def reset_excluded_components(self) -> None:
@@ -463,6 +493,13 @@ class MainWindow(QMainWindow):
             return
 
         self.excluded_component_points = []
+        self.reanalyze_current_image()
+
+    def reset_added_leaf_area(self) -> None:
+        if not self.manual_leaf_points:
+            return
+
+        self.manual_leaf_points = []
         self.reanalyze_current_image()
 
     def update_petri_overlay(self) -> None:
@@ -474,10 +511,15 @@ class MainWindow(QMainWindow):
         self.original_viewer.set_analysis_circle(analysis_circle, visible)
         self.result_viewer.set_analysis_circle(analysis_circle, visible)
         self.update_exclusion_markers()
+        self.update_addition_markers()
 
     def update_exclusion_markers(self) -> None:
         self.original_viewer.set_exclusion_points(self.excluded_component_points)
         self.result_viewer.set_exclusion_points(self.excluded_component_points)
+
+    def update_addition_markers(self) -> None:
+        self.original_viewer.set_addition_points(self.manual_leaf_points)
+        self.result_viewer.set_addition_points(self.manual_leaf_points)
 
     def update_filename_display(self) -> None:
         if self.current_image_path is None:
