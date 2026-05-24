@@ -44,6 +44,9 @@ class MainWindow(QMainWindow):
         self.csv_export_button = QPushButton("CSV speichern")
         self.csv_export_button.setEnabled(False)
         self.csv_export_button.clicked.connect(self.save_csv_export)
+        self.auto_settings_button = QPushButton("Werte vorschlagen")
+        self.auto_settings_button.setEnabled(False)
+        self.auto_settings_button.clicked.connect(self.suggest_settings_for_current_image)
 
         self.original_viewer = ImageViewer("Noch kein Bild geladen")
         self.original_viewer.circle_selected.connect(self.set_manual_petri_circle)
@@ -89,6 +92,7 @@ class MainWindow(QMainWindow):
         right_layout = QVBoxLayout()
         right_layout.addWidget(load_button)
         right_layout.addWidget(self.csv_export_button)
+        right_layout.addWidget(self.auto_settings_button)
         right_layout.addWidget(self.show_petri_checkbox)
         right_layout.addWidget(self.manual_petri_checkbox)
         right_layout.addWidget(self.exclude_component_checkbox)
@@ -205,6 +209,7 @@ class MainWindow(QMainWindow):
         self.current_image_path = Path(file_path)
         self.current_analysis_result = None
         self.csv_export_button.setEnabled(False)
+        self.auto_settings_button.setEnabled(True)
         self.current_petri_circle = None
         self.manual_petri_circle = None
         self.excluded_component_points = []
@@ -298,6 +303,32 @@ class MainWindow(QMainWindow):
             "CSV gespeichert",
             f"Ergebnis wurde gespeichert:\n{csv_path}",
         )
+
+    def suggest_settings_for_current_image(self) -> None:
+        if self.current_image_path is None:
+            QMessageBox.information(
+                self,
+                "Werte vorschlagen",
+                "Bitte zuerst ein Bild laden.",
+            )
+            return
+
+        try:
+            from analysis.auto_settings import suggest_analysis_settings
+
+            suggested_settings = suggest_analysis_settings(
+                image_path=self.current_image_path,
+                base_settings=self.settings_panel.analysis_settings(
+                    manual_petri_circle=self.manual_petri_circle,
+                    excluded_component_points=tuple(self.excluded_component_points),
+                ),
+                manual_petri_circle=self.manual_petri_circle,
+            )
+        except Exception as error:  # noqa: BLE001
+            QMessageBox.critical(self, "Vorschlag fehlgeschlagen", str(error))
+            return
+
+        self.settings_panel.set_analysis_settings(suggested_settings)
 
     def set_manual_petri_circle(self, circle: tuple[int, int, int]) -> None:
         self.manual_petri_circle = circle

@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import QSignalBlocker, Qt, Signal
 from PySide6.QtWidgets import (
     QGridLayout,
     QGroupBox,
     QLabel,
     QPushButton,
+    QComboBox,
     QSlider,
     QVBoxLayout,
 )
@@ -75,6 +76,40 @@ SLIDER_HELP: dict[str, str] = {
     ),
 }
 
+PRESETS: dict[str, AnalysisSettings] = {
+    "Standard": AnalysisSettings(),
+    "Dunkle Blaetter": AnalysisSettings(
+        thresholds=HSVThresholds(h_min=30, h_max=115, s_min=45, s_max=255, v_min=25),
+        min_object_area_px=160,
+        max_object_area_px=50000,
+        green_dominance_margin=12,
+        green_index_min=6,
+        leaf_fill_px=3,
+        pale_leaf_expansion_px=8,
+        inner_dish_factor=0.88,
+    ),
+    "Blasse Blaetter": AnalysisSettings(
+        thresholds=HSVThresholds(h_min=25, h_max=115, s_min=25, s_max=255, v_min=35),
+        min_object_area_px=180,
+        max_object_area_px=45000,
+        green_dominance_margin=8,
+        green_index_min=0,
+        leaf_fill_px=4,
+        pale_leaf_expansion_px=16,
+        inner_dish_factor=0.86,
+    ),
+    "Streng gegen Wurzeln": AnalysisSettings(
+        thresholds=HSVThresholds(h_min=35, h_max=105, s_min=95, s_max=255, v_min=30),
+        min_object_area_px=300,
+        max_object_area_px=35000,
+        green_dominance_margin=24,
+        green_index_min=20,
+        leaf_fill_px=2,
+        pale_leaf_expansion_px=4,
+        inner_dish_factor=0.86,
+    ),
+}
+
 
 class SettingsPanel(QGroupBox):
     settings_changed = Signal(object)
@@ -112,9 +147,20 @@ class SettingsPanel(QGroupBox):
 
         layout = QVBoxLayout()
         layout.addWidget(info_label)
+        layout.addWidget(self._build_preset_selector())
         layout.addLayout(slider_grid)
         layout.addWidget(reset_button)
         self.setLayout(layout)
+
+    def _build_preset_selector(self) -> QComboBox:
+        preset_selector = QComboBox()
+        preset_selector.addItems(PRESETS.keys())
+        preset_selector.setToolTip(
+            "Startwerte fuer typische Bildsituationen. Danach kannst du fein nachregeln."
+        )
+        preset_selector.currentTextChanged.connect(self.apply_preset)
+        self.preset_selector = preset_selector
+        return preset_selector
 
     def analysis_settings(
         self,
@@ -148,24 +194,42 @@ class SettingsPanel(QGroupBox):
         )
 
     def reset_defaults(self) -> None:
-        defaults = HSVThresholds()
-        for name, value in {
-            "h_min": defaults.h_min,
-            "h_max": defaults.h_max,
-            "s_min": defaults.s_min,
-            "s_max": defaults.s_max,
-            "v_min": defaults.v_min,
-            "v_max": defaults.v_max,
-            "min_object_area_px": 120,
-            "max_object_area_px": 50000,
-            "green_dominance_margin": 12,
-            "green_index_min": 8,
-            "leaf_fill_px": 2,
-            "pale_leaf_expansion_px": 12,
-            "inner_dish_percent": 90,
-        }.items():
-            self._sliders[name].setValue(value)
+        self.set_analysis_settings(PRESETS["Standard"])
+
+    def apply_preset(self, preset_name: str) -> None:
+        preset = PRESETS.get(preset_name)
+        if preset is None:
+            return
+        self.set_analysis_settings(preset)
+
+    def set_analysis_settings(self, settings: AnalysisSettings) -> None:
+        values = self._slider_values_from_settings(settings)
+        blockers = [QSignalBlocker(slider) for slider in self._sliders.values()]
+        try:
+            for name, value in values.items():
+                self._sliders[name].setValue(value)
+                self._value_labels[name].setText(str(value))
+        finally:
+            del blockers
         self.settings_changed.emit(self.analysis_settings())
+
+    def _slider_values_from_settings(self, settings: AnalysisSettings) -> dict[str, int]:
+        thresholds = settings.thresholds
+        return {
+            "h_min": thresholds.h_min,
+            "h_max": thresholds.h_max,
+            "s_min": thresholds.s_min,
+            "s_max": thresholds.s_max,
+            "v_min": thresholds.v_min,
+            "v_max": thresholds.v_max,
+            "min_object_area_px": settings.min_object_area_px,
+            "max_object_area_px": settings.max_object_area_px,
+            "green_dominance_margin": settings.green_dominance_margin,
+            "green_index_min": settings.green_index_min,
+            "leaf_fill_px": settings.leaf_fill_px,
+            "pale_leaf_expansion_px": settings.pale_leaf_expansion_px,
+            "inner_dish_percent": int(round(settings.inner_dish_factor * 100)),
+        }
 
     def _add_slider(
         self,

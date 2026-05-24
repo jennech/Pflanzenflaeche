@@ -192,6 +192,15 @@ Wenn Hintergrund, Label, Wurzeln oder andere falsche Bereiche mit als gruen erka
 
 Die Regler unter `Segmentierung` steuern, wie streng die App gruene Flaechen erkennt.
 
+Bevor du einzelne Regler lange suchst, nutze zuerst:
+
+- `Werte vorschlagen`: analysiert das aktuelle Bild und setzt automatisch brauchbare Startwerte.
+- Preset `Dunkle Blaetter`: fuer dunkles Medium und wenig leuchtendes Gruen.
+- Preset `Blasse Blaetter`: fuer helle oder gelbliche Blattbereiche.
+- Preset `Streng gegen Wurzeln`: wenn Wurzeln, helle Saeume oder Medium zu stark erkannt werden.
+
+Danach sollte nur noch Feintuning noetig sein.
+
 Die wichtigsten Regler:
 
 - `H min` und `H max`: Hue-Farbbereich
@@ -271,6 +280,7 @@ Dann:
 
 Dann:
 
+- zuerst Preset `Streng gegen Wurzeln` probieren
 - `Min Flaeche` erhoehen
 - `Gruen-Abstand` erhoehen
 - `Gruen-Index` erhoehen
