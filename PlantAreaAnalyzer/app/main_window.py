@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
     QCheckBox,
     QFileDialog,
     QGridLayout,
+    QLabel,
     QMainWindow,
     QMessageBox,
     QPushButton,
@@ -51,6 +52,9 @@ class MainWindow(QMainWindow):
         self.auto_settings_button.clicked.connect(self.suggest_settings_for_current_image)
         self.guided_settings_button = QPushButton("Gefuehrt einstellen")
         self.guided_settings_button.clicked.connect(self.open_guided_settings)
+        self.filename_label = QLabel("Datei: noch kein Bild geladen")
+        self.filename_label.setWordWrap(True)
+        self.filename_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
 
         self.original_viewer = ImageViewer("Noch kein Bild geladen")
         self.original_viewer.circle_selected.connect(self.set_manual_petri_circle)
@@ -98,6 +102,7 @@ class MainWindow(QMainWindow):
         right_layout.setContentsMargins(8, 8, 8, 8)
         right_layout.setSpacing(8)
         right_layout.addWidget(load_button)
+        right_layout.addWidget(self.filename_label)
         right_layout.addWidget(self.csv_export_button)
         right_layout.addWidget(self.auto_settings_button)
         right_layout.addWidget(self.guided_settings_button)
@@ -259,6 +264,7 @@ class MainWindow(QMainWindow):
             return
 
         self.current_image_path = Path(file_path)
+        self.update_filename_display()
         self.current_analysis_result = None
         self.csv_export_button.setEnabled(False)
         self.auto_settings_button.setEnabled(True)
@@ -320,12 +326,7 @@ class MainWindow(QMainWindow):
             )
             return
 
-        file_path, _ = QFileDialog.getSaveFileName(
-            self,
-            "CSV speichern",
-            "",
-            "CSV-Dateien (*.csv)",
-        )
+        file_path = self.select_csv_export_path()
         if not file_path:
             return
 
@@ -353,8 +354,21 @@ class MainWindow(QMainWindow):
         QMessageBox.information(
             self,
             "CSV gespeichert",
-            f"Ergebnis wurde gespeichert:\n{csv_path}",
+            f"Ergebnis wurde an die CSV angehaengt:\n{csv_path}",
         )
+
+    def select_csv_export_path(self) -> str:
+        dialog = QFileDialog(self, "CSV speichern oder erweitern")
+        dialog.setAcceptMode(QFileDialog.AcceptSave)
+        dialog.setNameFilter("CSV-Dateien (*.csv)")
+        dialog.setDefaultSuffix("csv")
+        dialog.setOption(QFileDialog.DontConfirmOverwrite, True)
+        dialog.setLabelText(QFileDialog.Accept, "Speichern/anhaengen")
+        if not dialog.exec():
+            return ""
+
+        selected_files = dialog.selectedFiles()
+        return selected_files[0] if selected_files else ""
 
     def suggest_settings_for_current_image(self) -> None:
         if self.current_image_path is None:
@@ -463,6 +477,18 @@ class MainWindow(QMainWindow):
     def update_exclusion_markers(self) -> None:
         self.original_viewer.set_exclusion_points(self.excluded_component_points)
         self.result_viewer.set_exclusion_points(self.excluded_component_points)
+
+    def update_filename_display(self) -> None:
+        if self.current_image_path is None:
+            self.filename_label.setText("Datei: noch kein Bild geladen")
+            self.filename_label.setToolTip("")
+            self.setWindowTitle("PlantAreaAnalyzer")
+            return
+
+        filename = self.current_image_path.name
+        self.filename_label.setText(f"Datei: {filename}")
+        self.filename_label.setToolTip(str(self.current_image_path))
+        self.setWindowTitle(f"PlantAreaAnalyzer - {filename}")
 
     def analysis_overlay_circle(
         self,
