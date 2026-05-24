@@ -90,6 +90,7 @@ def suggest_analysis_settings(
             dark_leaf_high_saturation_settings(base_settings, manual_petri_circle),
             root_strict_settings(base_settings, manual_petri_circle),
             pale_leaf_settings(base_settings, manual_petri_circle),
+            pale_leaf_base_root_settings(base_settings, manual_petri_circle),
         ],
     )
 
@@ -363,6 +364,27 @@ def pale_leaf_settings(
         leaf_fill_px=4,
         pale_leaf_expansion_px=22,
         root_trim_px=max(base_settings.root_trim_px, 3),
+        inner_dish_factor=min(base_settings.inner_dish_factor, 0.86),
+        morphology_kernel_size=base_settings.morphology_kernel_size,
+        manual_petri_circle=manual_petri_circle,
+        excluded_component_points=base_settings.excluded_component_points,
+    )
+
+
+def pale_leaf_base_root_settings(
+    base_settings: AnalysisSettings,
+    manual_petri_circle: tuple[int, int, int] | None,
+) -> AnalysisSettings:
+    """Recover grey-green leaf bases while keeping root-like appendages constrained."""
+    return AnalysisSettings(
+        thresholds=HSVThresholds(h_min=22, h_max=125, s_min=38, s_max=255, v_min=20),
+        min_object_area_px=160,
+        max_object_area_px=70000,
+        green_dominance_margin=0,
+        green_index_min=-5,
+        leaf_fill_px=1,
+        pale_leaf_expansion_px=32,
+        root_trim_px=max(base_settings.root_trim_px, 8),
         inner_dish_factor=min(base_settings.inner_dish_factor, 0.86),
         morphology_kernel_size=base_settings.morphology_kernel_size,
         manual_petri_circle=manual_petri_circle,

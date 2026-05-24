@@ -33,7 +33,8 @@ def test_guided_settings_combines_pale_and_root_constraints() -> None:
     assert preset_name == "Blasse Blattbasis + Wurzeln streng"
     assert settings.thresholds.s_min <= 80
     assert settings.green_dominance_margin == 0
-    assert settings.pale_leaf_expansion_px >= 28
+    assert settings.green_index_min <= 0
+    assert settings.pale_leaf_expansion_px >= 32
     assert settings.root_trim_px >= 8
     assert settings.min_object_area_px > 300
     assert settings.inner_dish_factor <= 0.84

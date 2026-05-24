@@ -42,7 +42,7 @@ def build_guided_settings(
         # Controlled expansion: recover pale leaf bases without opening the door too far.
         settings = replace(
             settings,
-            pale_leaf_expansion_px=max(settings.pale_leaf_expansion_px, 28),
+            pale_leaf_expansion_px=max(settings.pale_leaf_expansion_px, 32),
             root_trim_px=max(settings.root_trim_px, 8),
         )
     elif roots_or_halos:
