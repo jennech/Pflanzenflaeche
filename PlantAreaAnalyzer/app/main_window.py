@@ -328,7 +328,10 @@ class MainWindow(QMainWindow):
             QMessageBox.critical(self, "Vorschlag fehlgeschlagen", str(error))
             return
 
-        self.settings_panel.set_analysis_settings(suggested_settings)
+        self.settings_panel.set_analysis_settings(
+            suggested_settings,
+            preset_name="Auto-Vorschlag",
+        )
 
     def set_manual_petri_circle(self, circle: tuple[int, int, int]) -> None:
         self.manual_petri_circle = circle

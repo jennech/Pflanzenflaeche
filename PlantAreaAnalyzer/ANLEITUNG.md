@@ -196,10 +196,15 @@ Bevor du einzelne Regler lange suchst, nutze zuerst:
 
 - `Werte vorschlagen`: probiert mehrere Segmentierungsstrategien und waehlt die plausibelste Maske als Startpunkt.
 - Preset `Dunkle Blaetter`: fuer dunkles Medium und wenig leuchtendes Gruen.
+- Preset `Dunkle Blaetter + Wurzeln streng`: wenn `Dunkle Blaetter` gut startet, aber noch zu viele Wurzelanhaenge mitnimmt.
 - Preset `Blasse Blaetter`: fuer helle oder gelbliche Blattbereiche.
 - Preset `Streng gegen Wurzeln`: wenn Wurzeln, helle Saeume oder Medium zu stark erkannt werden.
 
 Danach sollte nur noch Feintuning noetig sein.
+
+Wenn `Werte vorschlagen` genutzt wurde, steht im Preset-Feld `Auto-Vorschlag`.
+Sobald du danach einen Regler manuell bewegst, wechselt die Anzeige auf
+`Benutzerdefiniert`.
 
 Die wichtigsten Regler:
 
@@ -286,7 +291,8 @@ Dann:
 
 Dann:
 
-- zuerst Preset `Streng gegen Wurzeln` probieren
+- wenn `Dunkle Blaetter` sonst gut passt: `Dunkle Blaetter + Wurzeln streng` probieren
+- sonst Preset `Streng gegen Wurzeln` probieren
 - `Min Flaeche` erhoehen
 - `Gruen-Abstand` erhoehen
 - `Gruen-Index` erhoehen

@@ -14,6 +14,8 @@ from PySide6.QtWidgets import (
 from analysis.settings import AnalysisSettings
 from analysis.settings import HSVThresholds
 
+AUTO_PRESET_LABEL = "Auto-Vorschlag"
+CUSTOM_PRESET_LABEL = "Benutzerdefiniert"
 
 SLIDER_HELP: dict[str, str] = {
     "h_min": (
@@ -88,6 +90,16 @@ PRESETS: dict[str, AnalysisSettings] = {
         pale_leaf_expansion_px=26,
         inner_dish_factor=0.88,
     ),
+    "Dunkle Blaetter + Wurzeln streng": AnalysisSettings(
+        thresholds=HSVThresholds(h_min=30, h_max=120, s_min=175, s_max=255, v_min=20),
+        min_object_area_px=320,
+        max_object_area_px=50000,
+        green_dominance_margin=22,
+        green_index_min=80,
+        leaf_fill_px=2,
+        pale_leaf_expansion_px=14,
+        inner_dish_factor=0.86,
+    ),
     "Blasse Blaetter": AnalysisSettings(
         thresholds=HSVThresholds(h_min=25, h_max=115, s_min=25, s_max=255, v_min=35),
         min_object_area_px=180,
@@ -155,6 +167,8 @@ class SettingsPanel(QGroupBox):
     def _build_preset_selector(self) -> QComboBox:
         preset_selector = QComboBox()
         preset_selector.addItems(PRESETS.keys())
+        preset_selector.addItem(AUTO_PRESET_LABEL)
+        preset_selector.addItem(CUSTOM_PRESET_LABEL)
         preset_selector.setToolTip(
             "Startwerte fuer typische Bildsituationen. Danach kannst du fein nachregeln."
         )
@@ -194,15 +208,19 @@ class SettingsPanel(QGroupBox):
         )
 
     def reset_defaults(self) -> None:
-        self.set_analysis_settings(PRESETS["Standard"])
+        self.set_analysis_settings(PRESETS["Standard"], preset_name="Standard")
 
     def apply_preset(self, preset_name: str) -> None:
         preset = PRESETS.get(preset_name)
         if preset is None:
             return
-        self.set_analysis_settings(preset)
+        self.set_analysis_settings(preset, preset_name=preset_name)
 
-    def set_analysis_settings(self, settings: AnalysisSettings) -> None:
+    def set_analysis_settings(
+        self,
+        settings: AnalysisSettings,
+        preset_name: str = CUSTOM_PRESET_LABEL,
+    ) -> None:
         values = self._slider_values_from_settings(settings)
         blockers = [QSignalBlocker(slider) for slider in self._sliders.values()]
         try:
@@ -211,6 +229,7 @@ class SettingsPanel(QGroupBox):
                 self._value_labels[name].setText(str(value))
         finally:
             del blockers
+        self._set_preset_label(preset_name)
         self.settings_changed.emit(self.analysis_settings())
 
     def _slider_values_from_settings(self, settings: AnalysisSettings) -> dict[str, int]:
@@ -271,6 +290,7 @@ class SettingsPanel(QGroupBox):
     def _slider_changed(self, name: str, value: int) -> None:
         self._value_labels[name].setText(str(value))
         self._keep_min_max_valid(name)
+        self._set_preset_label(CUSTOM_PRESET_LABEL)
         self.settings_changed.emit(self.analysis_settings())
 
     def _keep_min_max_valid(self, changed_name: str) -> None:
@@ -288,3 +308,14 @@ class SettingsPanel(QGroupBox):
 
     def _value(self, name: str) -> int:
         return self._sliders[name].value()
+
+    def _set_preset_label(self, preset_name: str) -> None:
+        index = self.preset_selector.findText(preset_name)
+        if index < 0:
+            return
+
+        blocker = QSignalBlocker(self.preset_selector)
+        try:
+            self.preset_selector.setCurrentIndex(index)
+        finally:
+            del blocker

@@ -64,7 +64,7 @@ def suggest_analysis_settings(
 
     min_area = max(80, int(candidate_mask.sum() * 0.003))
     max_area = max(6000, int(candidate_mask.sum() * 0.65))
-    return AnalysisSettings(
+    data_driven_settings = AnalysisSettings(
         thresholds=thresholds,
         min_object_area_px=min(min_area, 2500),
         max_object_area_px=min(max_area, 120000),
@@ -83,6 +83,8 @@ def suggest_analysis_settings(
         petri_circle=petri_circle,
         base_settings=base_settings,
         candidate_settings=[
+            base_settings,
+            stricter_root_variant(base_settings, manual_petri_circle),
             data_driven_settings,
             dark_leaf_high_saturation_settings(base_settings, manual_petri_circle),
             root_strict_settings(base_settings, manual_petri_circle),
@@ -274,6 +276,33 @@ def conservative_dark_leaf_settings(base_settings: AnalysisSettings) -> Analysis
         inner_dish_factor=base_settings.inner_dish_factor,
         morphology_kernel_size=base_settings.morphology_kernel_size,
         manual_petri_circle=base_settings.manual_petri_circle,
+        excluded_component_points=base_settings.excluded_component_points,
+    )
+
+
+def stricter_root_variant(
+    base_settings: AnalysisSettings,
+    manual_petri_circle: tuple[int, int, int] | None,
+) -> AnalysisSettings:
+    thresholds = base_settings.thresholds
+    return AnalysisSettings(
+        thresholds=HSVThresholds(
+            h_min=thresholds.h_min,
+            h_max=min(thresholds.h_max, 120),
+            s_min=clamp_int(max(thresholds.s_min, 165), 0, 255),
+            s_max=thresholds.s_max,
+            v_min=thresholds.v_min,
+            v_max=thresholds.v_max,
+        ),
+        min_object_area_px=max(base_settings.min_object_area_px, 300),
+        max_object_area_px=min(base_settings.max_object_area_px, 50000),
+        green_dominance_margin=max(base_settings.green_dominance_margin, 22),
+        green_index_min=max(base_settings.green_index_min, 80),
+        leaf_fill_px=min(base_settings.leaf_fill_px, 3),
+        pale_leaf_expansion_px=min(base_settings.pale_leaf_expansion_px, 14),
+        inner_dish_factor=min(base_settings.inner_dish_factor, 0.86),
+        morphology_kernel_size=base_settings.morphology_kernel_size,
+        manual_petri_circle=manual_petri_circle,
         excluded_component_points=base_settings.excluded_component_points,
     )
 

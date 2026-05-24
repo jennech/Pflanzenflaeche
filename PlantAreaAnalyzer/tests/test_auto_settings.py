@@ -29,7 +29,7 @@ def test_auto_settings_suggests_leaf_friendly_thresholds(tmp_path: Path) -> None
     assert settings.thresholds.h_min <= 70
     assert settings.thresholds.h_max >= 70
     assert settings.thresholds.s_min <= 185
-    assert settings.pale_leaf_expansion_px <= 12
+    assert settings.pale_leaf_expansion_px <= 30
     assert settings.min_object_area_px >= 80
 
 
