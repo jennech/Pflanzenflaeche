@@ -40,8 +40,20 @@ def build_guided_settings(
         # Controlled expansion: recover pale leaf parts without opening the door too far.
         settings = replace(
             settings,
-            pale_leaf_expansion_px=max(settings.pale_leaf_expansion_px, 12),
-            root_trim_px=max(settings.root_trim_px, 7),
+            green_dominance_margin=min(settings.green_dominance_margin, 10),
+            green_index_min=max(settings.green_index_min, 80),
+            leaf_fill_px=0,
+            pale_leaf_expansion_px=max(settings.pale_leaf_expansion_px, 18),
+            root_trim_px=max(settings.root_trim_px, 10),
+        )
+    elif roots_or_halos:
+        settings = replace(
+            settings,
+            green_dominance_margin=min(settings.green_dominance_margin, 10),
+            green_index_min=max(settings.green_index_min, 80),
+            leaf_fill_px=0,
+            pale_leaf_expansion_px=max(settings.pale_leaf_expansion_px, 18),
+            root_trim_px=max(settings.root_trim_px, 10),
         )
     elif pale_leaves_missing:
         settings = replace(
