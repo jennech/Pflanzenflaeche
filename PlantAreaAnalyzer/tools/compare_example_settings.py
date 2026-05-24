@@ -50,7 +50,7 @@ def load_references(csv_path: Path) -> list[ExampleReference]:
     if not csv_path.exists():
         return []
 
-    references: list[ExampleReference] = []
+    references_by_filename: dict[str, ExampleReference] = {}
     with csv_path.open(newline="", encoding="utf-8-sig") as csv_file:
         for row in csv.DictReader(csv_file):
             image_path = Path(row["image_path"])
@@ -60,7 +60,7 @@ def load_references(csv_path: Path) -> list[ExampleReference]:
             if not image_path.exists():
                 continue
 
-            references.append(
+            references_by_filename[row["original_filename"]] = (
                 ExampleReference(
                     image_path=image_path,
                     filename=row["original_filename"],
@@ -68,7 +68,7 @@ def load_references(csv_path: Path) -> list[ExampleReference]:
                     settings=settings_from_row(row),
                 )
             )
-    return references
+    return list(references_by_filename.values())
 
 
 def settings_from_row(row: dict[str, str]) -> AnalysisSettings:

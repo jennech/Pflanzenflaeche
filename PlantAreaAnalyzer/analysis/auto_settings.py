@@ -91,6 +91,7 @@ def suggest_analysis_settings(
             root_strict_settings(base_settings, manual_petri_circle),
             broad_strict_leaf_settings(base_settings, manual_petri_circle),
             contrast_strict_leaf_settings(base_settings, manual_petri_circle),
+            small_pale_core_settings(base_settings, manual_petri_circle),
             pale_leaf_settings(base_settings, manual_petri_circle),
             pale_leaf_base_root_settings(base_settings, manual_petri_circle),
         ],
@@ -406,6 +407,27 @@ def contrast_strict_leaf_settings(
         green_index_min=80,
         leaf_fill_px=4,
         pale_leaf_expansion_px=22,
+        root_trim_px=max(base_settings.root_trim_px, 10),
+        inner_dish_factor=min(base_settings.inner_dish_factor, 0.78),
+        morphology_kernel_size=base_settings.morphology_kernel_size,
+        manual_petri_circle=manual_petri_circle,
+        excluded_component_points=base_settings.excluded_component_points,
+    )
+
+
+def small_pale_core_settings(
+    base_settings: AnalysisSettings,
+    manual_petri_circle: tuple[int, int, int] | None,
+) -> AnalysisSettings:
+    """Conservative mode for weak plants where only saturated leaf cores are reliable."""
+    return AnalysisSettings(
+        thresholds=HSVThresholds(h_min=43, h_max=82, s_min=231, s_max=255, v_min=57),
+        min_object_area_px=1454,
+        max_object_area_px=120000,
+        green_dominance_margin=10,
+        green_index_min=46,
+        leaf_fill_px=2,
+        pale_leaf_expansion_px=28,
         root_trim_px=max(base_settings.root_trim_px, 10),
         inner_dish_factor=min(base_settings.inner_dish_factor, 0.78),
         morphology_kernel_size=base_settings.morphology_kernel_size,
