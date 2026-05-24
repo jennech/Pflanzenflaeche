@@ -6,6 +6,7 @@ from analysis.green_segmentation import build_green_dominance_mask
 from analysis.green_segmentation import filter_components_by_area
 from analysis.green_segmentation import filter_small_components
 from analysis.green_segmentation import fill_leaf_gaps
+from analysis.green_segmentation import suppress_thin_protrusions
 from analysis.green_segmentation import nearest_component_label
 from analysis.green_segmentation import remove_components_at_points
 from analysis.green_segmentation import suppress_root_like_components
@@ -58,6 +59,26 @@ def test_fill_leaf_gaps_closes_small_holes() -> None:
     filled = fill_leaf_gaps(mask, fill_px=1)
 
     assert filled[4, 4] == 255
+
+
+def test_fill_leaf_gaps_fills_enclosed_leaf_center() -> None:
+    mask = np.zeros((24, 24), dtype=np.uint8)
+    cv2.circle(mask, (12, 12), 8, 255, 2)
+
+    filled = fill_leaf_gaps(mask, fill_px=2)
+
+    assert filled[12, 12] == 255
+
+
+def test_suppress_thin_protrusions_removes_root_like_appendage() -> None:
+    mask = np.zeros((40, 40), dtype=np.uint8)
+    cv2.circle(mask, (14, 18), 8, 255, -1)
+    cv2.line(mask, (21, 18), (36, 18), 255, 1)
+
+    filtered = suppress_thin_protrusions(mask)
+
+    assert filtered[18, 14] == 255
+    assert filtered[18, 34] == 0
 
 
 def test_remove_components_at_points_removes_touched_component() -> None:

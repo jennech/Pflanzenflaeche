@@ -82,6 +82,7 @@ def analyze_green_area(
         min_area_px=settings.min_object_area_px,
         max_area_px=settings.max_object_area_px,
     )
+    cleaned_mask = suppress_thin_protrusions(cleaned_mask)
     cleaned_mask = remove_components_at_points(
         cleaned_mask,
         settings.excluded_component_points,
@@ -245,7 +246,7 @@ def suppress_root_like_components(mask: np.ndarray) -> np.ndarray:
 
 
 def fill_leaf_gaps(mask: np.ndarray, fill_px: int) -> np.ndarray:
-    """Close small holes and gaps inside leaf blobs without broad expansion."""
+    """Close gaps and fill enclosed leaf interiors without broad expansion."""
 
     if fill_px <= 0:
         return mask
@@ -256,7 +257,79 @@ def fill_leaf_gaps(mask: np.ndarray, fill_px: int) -> np.ndarray:
         (kernel_size, kernel_size),
     )
     filled = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
+    hole_area_limit = max(80, fill_px * fill_px * 220)
+    filled = fill_enclosed_holes(filled, max_hole_area_px=hole_area_limit)
     return cv2.bitwise_or(mask, filled)
+
+
+def fill_enclosed_holes(mask: np.ndarray, max_hole_area_px: int) -> np.ndarray:
+    """Fill fully enclosed holes, such as leaf centers missed by color thresholds."""
+
+    inverted = cv2.bitwise_not(mask)
+    num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(inverted, 8)
+    if num_labels <= 1:
+        return mask
+
+    height, width = mask.shape
+    filled = mask.copy()
+    for label in range(1, num_labels):
+        area = stats[label, cv2.CC_STAT_AREA]
+        if area > max_hole_area_px:
+            continue
+
+        left = stats[label, cv2.CC_STAT_LEFT]
+        top = stats[label, cv2.CC_STAT_TOP]
+        component_width = stats[label, cv2.CC_STAT_WIDTH]
+        component_height = stats[label, cv2.CC_STAT_HEIGHT]
+        touches_border = (
+            left == 0
+            or top == 0
+            or left + component_width >= width
+            or top + component_height >= height
+        )
+        if touches_border:
+            continue
+
+        filled[labels == label] = 255
+
+    return filled
+
+
+def suppress_thin_protrusions(mask: np.ndarray) -> np.ndarray:
+    """Trim narrow root-like appendages while preserving compact leaf regions."""
+
+    if not np.any(mask):
+        return mask
+
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+    opened = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+    if not np.any(opened):
+        return mask
+
+    opened = fill_enclosed_holes(opened, max_hole_area_px=1200)
+    return cv2.bitwise_or(opened, keep_compact_leaf_components(mask, opened))
+
+
+def keep_compact_leaf_components(mask: np.ndarray, core_mask: np.ndarray) -> np.ndarray:
+    """Restore compact components that opening would otherwise erase."""
+
+    num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(mask, 8)
+    restored = np.zeros_like(mask)
+    for label in range(1, num_labels):
+        component = labels == label
+        if np.any(core_mask[component] > 0):
+            continue
+
+        area = stats[label, cv2.CC_STAT_AREA]
+        width = stats[label, cv2.CC_STAT_WIDTH]
+        height = stats[label, cv2.CC_STAT_HEIGHT]
+        short_side = max(1, min(width, height))
+        long_side = max(width, height)
+        fill_ratio = area / max(1, width * height)
+        if area >= 80 and long_side / short_side <= 2.8 and fill_ratio >= 0.35:
+            restored[component] = 255
+
+    return restored
 
 
 def filter_small_components(mask: np.ndarray, min_area_px: int) -> np.ndarray:

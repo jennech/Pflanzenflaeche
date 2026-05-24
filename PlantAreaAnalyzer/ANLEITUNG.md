@@ -216,6 +216,12 @@ Die wichtigsten Regler:
 
 Wenn du einen Regler verschiebst, wird sofort neu analysiert.
 
+Hinweis fuer dunkle Petrischalen: `H min` sehr weit nach oben zu schieben ist oft
+keine gute Loesung. Dadurch wird nicht einfach "mehr Blatt" erkannt, sondern der
+Bereich verschiebt sich in Richtung blaugruen/cyan. Dort liegen haeufig
+Farbsaeume, Wurzelschatten und Randartefakte. Besser zuerst `Werte vorschlagen`
+oder `Streng gegen Wurzeln` nutzen und danach nur vorsichtig nachregeln.
+
 ## 5. Ergebnisse lesen
 
 Die Ergebnistabelle zeigt:
