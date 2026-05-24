@@ -15,6 +15,7 @@ from analysis.settings import AnalysisSettings
 from analysis.settings import HSVThresholds
 
 AUTO_PRESET_LABEL = "Auto-Vorschlag"
+GUIDED_PRESET_LABEL = "Gefuehrt"
 CUSTOM_PRESET_LABEL = "Benutzerdefiniert"
 
 SLIDER_HELP: dict[str, str] = {
@@ -168,6 +169,7 @@ class SettingsPanel(QGroupBox):
         preset_selector = QComboBox()
         preset_selector.addItems(PRESETS.keys())
         preset_selector.addItem(AUTO_PRESET_LABEL)
+        preset_selector.addItem(GUIDED_PRESET_LABEL)
         preset_selector.addItem(CUSTOM_PRESET_LABEL)
         preset_selector.setToolTip(
             "Startwerte fuer typische Bildsituationen. Danach kannst du fein nachregeln."

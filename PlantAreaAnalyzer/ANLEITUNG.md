@@ -194,6 +194,9 @@ Die Regler unter `Segmentierung` steuern, wie streng die App gruene Flaechen erk
 
 Bevor du einzelne Regler lange suchst, nutze zuerst:
 
+- `Gefuehrt einstellen`: stellt einfache Fragen wie "dunkles Medium?",
+  "Wurzeln/Saeume stoeren?" oder "blasse Blattteile fehlen?" und setzt daraus
+  passende Startwerte. Das gleiche findest du oben im Menue `Analyse`.
 - `Werte vorschlagen`: probiert mehrere Segmentierungsstrategien und waehlt die plausibelste Maske als Startpunkt.
 - Preset `Dunkle Blaetter`: fuer dunkles Medium und wenig leuchtendes Gruen.
 - Preset `Dunkle Blaetter + Wurzeln streng`: wenn `Dunkle Blaetter` gut startet, aber noch zu viele Wurzelanhaenge mitnimmt.
@@ -203,6 +206,7 @@ Bevor du einzelne Regler lange suchst, nutze zuerst:
 Danach sollte nur noch Feintuning noetig sein.
 
 Wenn `Werte vorschlagen` genutzt wurde, steht im Preset-Feld `Auto-Vorschlag`.
+Wenn du die gefuehrte Auswahl genutzt hast, steht dort `Gefuehrt`.
 Sobald du danach einen Regler manuell bewegst, wechselt die Anzeige auf
 `Benutzerdefiniert`.
 

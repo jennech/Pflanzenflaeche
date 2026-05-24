@@ -4,7 +4,8 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QByteArray, QSettings, Qt
+from PySide6.QtGui import QAction
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -33,6 +34,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle("PlantAreaAnalyzer")
         self.resize(1200, 720)
+        self._settings = QSettings("Kojla", "PlantAreaAnalyzer")
         self.current_image_path: Optional[Path] = None
         self.current_analysis_result = None
         self.current_petri_circle: Optional[tuple[int, int, int]] = None
@@ -47,6 +49,8 @@ class MainWindow(QMainWindow):
         self.auto_settings_button = QPushButton("Werte vorschlagen")
         self.auto_settings_button.setEnabled(False)
         self.auto_settings_button.clicked.connect(self.suggest_settings_for_current_image)
+        self.guided_settings_button = QPushButton("Gefuehrt einstellen")
+        self.guided_settings_button.clicked.connect(self.open_guided_settings)
 
         self.original_viewer = ImageViewer("Noch kein Bild geladen")
         self.original_viewer.circle_selected.connect(self.set_manual_petri_circle)
@@ -56,6 +60,7 @@ class MainWindow(QMainWindow):
         self.results_table = ResultsTable()
         self.settings_panel = SettingsPanel()
         self.settings_panel.settings_changed.connect(self.reanalyze_current_image)
+        self.build_menu_bar()
 
         self.show_petri_checkbox = QCheckBox("Petrischale anzeigen")
         self.show_petri_checkbox.setChecked(True)
@@ -90,9 +95,12 @@ class MainWindow(QMainWindow):
         self.results_toggle.toggled.connect(self.toggle_results_panel)
 
         right_layout = QVBoxLayout()
+        right_layout.setContentsMargins(8, 8, 8, 8)
+        right_layout.setSpacing(8)
         right_layout.addWidget(load_button)
         right_layout.addWidget(self.csv_export_button)
         right_layout.addWidget(self.auto_settings_button)
+        right_layout.addWidget(self.guided_settings_button)
         right_layout.addWidget(self.show_petri_checkbox)
         right_layout.addWidget(self.manual_petri_checkbox)
         right_layout.addWidget(self.exclude_component_checkbox)
@@ -100,45 +108,89 @@ class MainWindow(QMainWindow):
         right_layout.addWidget(self.manual_adjust_toggle)
         right_layout.addWidget(self.manual_adjust_panel)
         right_layout.addWidget(self.settings_panel)
-        right_layout.addStretch()
 
         controls_widget = QWidget()
         controls_widget.setLayout(right_layout)
 
-        controls_scroll = QScrollArea()
-        controls_scroll.setWidgetResizable(True)
-        controls_scroll.setWidget(controls_widget)
-        controls_scroll.setMinimumHeight(180)
+        self.controls_scroll = QScrollArea()
+        self.controls_scroll.setWidgetResizable(True)
+        self.controls_scroll.setWidget(controls_widget)
+        self.controls_scroll.setMinimumHeight(240)
 
         self.results_panel = QWidget()
+        self.results_panel.setMinimumHeight(170)
         results_layout = QVBoxLayout()
         results_layout.setContentsMargins(0, 0, 0, 0)
         results_layout.addWidget(self.results_toggle)
         results_layout.addWidget(self.results_table)
         self.results_panel.setLayout(results_layout)
+        self.results_table.setMinimumHeight(130)
 
-        right_splitter = QSplitter(Qt.Vertical)
-        right_splitter.addWidget(controls_scroll)
-        right_splitter.addWidget(self.results_panel)
-        right_splitter.setSizes([460, 260])
-        right_splitter.setStretchFactor(0, 2)
-        right_splitter.setStretchFactor(1, 1)
+        self.right_splitter = QSplitter(Qt.Vertical)
+        self.right_splitter.addWidget(self.controls_scroll)
+        self.right_splitter.addWidget(self.results_panel)
+        self.right_splitter.setSizes([500, 220])
+        self.right_splitter.setStretchFactor(0, 1)
+        self.right_splitter.setStretchFactor(1, 0)
+        self.right_splitter.setCollapsible(0, False)
+        self.right_splitter.setCollapsible(1, False)
 
-        image_splitter = QSplitter(Qt.Horizontal)
-        image_splitter.addWidget(self.original_viewer)
-        image_splitter.addWidget(self.result_viewer)
-        image_splitter.setSizes([560, 560])
-        image_splitter.setStretchFactor(0, 1)
-        image_splitter.setStretchFactor(1, 1)
+        self.image_splitter = QSplitter(Qt.Horizontal)
+        self.image_splitter.addWidget(self.original_viewer)
+        self.image_splitter.addWidget(self.result_viewer)
+        self.image_splitter.setSizes([560, 560])
+        self.image_splitter.setStretchFactor(0, 1)
+        self.image_splitter.setStretchFactor(1, 1)
 
-        main_splitter = QSplitter(Qt.Horizontal)
-        main_splitter.addWidget(image_splitter)
-        main_splitter.addWidget(right_splitter)
-        main_splitter.setSizes([880, 320])
-        main_splitter.setStretchFactor(0, 3)
-        main_splitter.setStretchFactor(1, 1)
+        self.main_splitter = QSplitter(Qt.Horizontal)
+        self.main_splitter.addWidget(self.image_splitter)
+        self.main_splitter.addWidget(self.right_splitter)
+        self.main_splitter.setSizes([880, 320])
+        self.main_splitter.setStretchFactor(0, 3)
+        self.main_splitter.setStretchFactor(1, 1)
 
-        self.setCentralWidget(main_splitter)
+        self.setCentralWidget(self.main_splitter)
+        self.restore_saved_layout()
+
+    def build_menu_bar(self) -> None:
+        analysis_menu = self.menuBar().addMenu("Analyse")
+        guided_action = QAction("Gefuehrte Einstellungen...", self)
+        guided_action.triggered.connect(self.open_guided_settings)
+        analysis_menu.addAction(guided_action)
+
+        auto_action = QAction("Werte vorschlagen", self)
+        auto_action.triggered.connect(self.suggest_settings_for_current_image)
+        analysis_menu.addAction(auto_action)
+
+    def restore_saved_layout(self) -> None:
+        geometry = self._settings.value("window/geometry")
+        geometry_data = self._to_qbytearray(geometry)
+        if geometry_data is not None:
+            self.restoreGeometry(geometry_data)
+
+        for key, splitter in (
+            ("splitter/main", self.main_splitter),
+            ("splitter/images", self.image_splitter),
+            ("splitter/right", self.right_splitter),
+        ):
+            splitter_state = self._to_qbytearray(self._settings.value(key))
+            if splitter_state is not None:
+                splitter.restoreState(splitter_state)
+
+    def closeEvent(self, event) -> None:  # noqa: N802
+        self._settings.setValue("window/geometry", self.saveGeometry())
+        self._settings.setValue("splitter/main", self.main_splitter.saveState())
+        self._settings.setValue("splitter/images", self.image_splitter.saveState())
+        self._settings.setValue("splitter/right", self.right_splitter.saveState())
+        super().closeEvent(event)
+
+    @staticmethod
+    def _to_qbytearray(value: object) -> QByteArray | None:
+        if isinstance(value, QByteArray):
+            return value
+        if isinstance(value, (bytes, bytearray)):
+            return QByteArray(value)
+        return None
 
     def build_manual_adjust_layout(self) -> QGridLayout:
         layout = QGridLayout()
@@ -331,6 +383,20 @@ class MainWindow(QMainWindow):
         self.settings_panel.set_analysis_settings(
             suggested_settings,
             preset_name="Auto-Vorschlag",
+        )
+
+    def open_guided_settings(self) -> None:
+        from app.guided_settings_dialog import GuidedSettingsDialog
+        from app.settings_panel import GUIDED_PRESET_LABEL
+
+        dialog = GuidedSettingsDialog(self)
+        if not dialog.exec():
+            return
+
+        _, settings = dialog.recommended_settings()
+        self.settings_panel.set_analysis_settings(
+            settings,
+            preset_name=GUIDED_PRESET_LABEL,
         )
 
     def set_manual_petri_circle(self, circle: tuple[int, int, int]) -> None:
