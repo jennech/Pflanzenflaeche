@@ -1,0 +1,25 @@
+Titel: Groessere dunkle Blaetter mit ineinander uebergehenden Pflanzenbereichen
+
+Datei: groesser_ineinanderuebergehend_dunkle_blaetter.jpg
+Kategorie: schwieriger Fall fuer dunkle/graugruene Blattbasis
+
+Bildbeschreibung:
+Mehrere groessere Pflanzen stehen relativ dicht zusammen. Die Blaetter sind dunkelgruen bis graugruen und
+gehen optisch teilweise ineinander ueber. Junge Blattspitzen sind gruener und staerker gesaettigt als die
+breiteren Blattbasen. Das Medium ist dunkel, mit blauen/hellen Saeumen um Pflanzen und Randbereiche.
+
+Analyseziel:
+Die gesamte sichtbare Blattflaeche inklusive dunkler/graugruener Blattbasis soll erfasst werden. Wurzeln,
+Farbsaeume und Medium sollen ausgeschlossen bleiben. Zusammenhaengende Pflanzenbereiche duerfen als eine
+Maskenflaeche erscheinen, solange nur Blattgewebe gezaehlt wird.
+
+Warum dieses Bild wichtig ist:
+Dieses Bild prueft, ob der Algorithmus nicht nur hellgruenes junges Gewebe erkennt, sondern auch die dunkle
+Blattbasis. Gleichzeitig darf er nicht in Farbsaeume oder Medium auslaufen.
+
+Vermutlich relevante Regler:
+- Preset: Dunkle Blaetter oder Dunkle Blaetter + Wurzeln streng als Start.
+- S min: wichtig, um Wurzeln/Saeume zu bremsen, aber nicht zu hoch setzen.
+- Gruen-Abstand und Gruen-Index: strenger machen, wenn Saeume mitkommen.
+- Blass-Erweit.: nur so weit erhoehen, bis die Blattbasis gefuellt ist.
+

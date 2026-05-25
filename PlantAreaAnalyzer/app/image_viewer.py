@@ -143,14 +143,19 @@ class ImageViewer(QGraphicsView):
             item.setZValue(20)
             self._exclusion_items.append(item)
 
-    def set_addition_points(self, points: list[tuple[int, int]]) -> None:
+    def set_addition_points(
+        self,
+        points: list[tuple[int, int]],
+        radius_px: int = 14,
+    ) -> None:
         self._clear_addition_points()
         if self._pixmap_item is None:
             return
 
         pen = QPen(QColor(0, 210, 120), 3)
+        radius = max(1, int(radius_px))
         for center_x, center_y in points:
-            rect = QRectF(center_x - 7, center_y - 7, 14, 14)
+            rect = QRectF(center_x - radius, center_y - radius, radius * 2, radius * 2)
             item = self._scene.addEllipse(rect, pen)
             item.setZValue(21)
             self._addition_items.append(item)

@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
     QPushButton,
     QScrollArea,
     QSplitter,
+    QSlider,
     QToolButton,
     QVBoxLayout,
     QWidget,
@@ -30,6 +31,7 @@ from app.settings_panel import SettingsPanel
 class MainWindow(QMainWindow):
     PETRI_NUDGE_STEP_PX = 5
     PETRI_RADIUS_STEP_PX = 5
+    DEFAULT_MANUAL_LEAF_RADIUS_PX = 14
 
     def __init__(self) -> None:
         super().__init__()
@@ -42,6 +44,10 @@ class MainWindow(QMainWindow):
         self.manual_petri_circle: Optional[tuple[int, int, int]] = None
         self.excluded_component_points: list[tuple[int, int]] = []
         self.manual_leaf_points: list[tuple[int, int]] = []
+        self.manual_leaf_radius_px = self._settings_int(
+            self._settings.value("manual_leaf/radius_px"),
+            self.DEFAULT_MANUAL_LEAF_RADIUS_PX,
+        )
 
         load_button = QPushButton("Bild laden")
         load_button.clicked.connect(self.load_image)
@@ -82,6 +88,22 @@ class MainWindow(QMainWindow):
         reset_exclusions_button.clicked.connect(self.reset_excluded_components)
         self.add_leaf_checkbox = QCheckBox("Blattflaeche per Klick hinzufuegen")
         self.add_leaf_checkbox.toggled.connect(self.toggle_add_leaf_mode)
+        self.manual_leaf_radius_label = QLabel(str(self.manual_leaf_radius_px))
+        self.manual_leaf_radius_slider = QSlider(Qt.Horizontal)
+        self.manual_leaf_radius_slider.setRange(4, 40)
+        self.manual_leaf_radius_slider.setValue(self.manual_leaf_radius_px)
+        self.manual_leaf_radius_slider.setToolTip(
+            "Groesse der manuell hinzugefuegten Blatt-Patches in Pixeln. "
+            "Klein fuer feine Raender, groesser fuer blasse Flaechen."
+        )
+        self.manual_leaf_radius_slider.valueChanged.connect(
+            self.set_manual_leaf_radius
+        )
+        undo_added_leaf_button = QPushButton("Letzten Blatt-Klick rueckgaengig")
+        undo_added_leaf_button.setToolTip(
+            "Entfernt nur die zuletzt manuell hinzugefuegte Blattflaeche."
+        )
+        undo_added_leaf_button.clicked.connect(self.undo_last_added_leaf_area)
         reset_added_leaf_button = QPushButton("Hinzugefuegte Flaechen zuruecksetzen")
         reset_added_leaf_button.clicked.connect(self.reset_added_leaf_area)
 
@@ -118,6 +140,8 @@ class MainWindow(QMainWindow):
         right_layout.addWidget(self.exclude_component_checkbox)
         right_layout.addWidget(reset_exclusions_button)
         right_layout.addWidget(self.add_leaf_checkbox)
+        right_layout.addWidget(self.build_manual_leaf_radius_widget())
+        right_layout.addWidget(undo_added_leaf_button)
         right_layout.addWidget(reset_added_leaf_button)
         right_layout.addWidget(self.manual_adjust_toggle)
         right_layout.addWidget(self.manual_adjust_panel)
@@ -196,6 +220,7 @@ class MainWindow(QMainWindow):
         self._settings.setValue("splitter/main", self.main_splitter.saveState())
         self._settings.setValue("splitter/images", self.image_splitter.saveState())
         self._settings.setValue("splitter/right", self.right_splitter.saveState())
+        self._settings.setValue("manual_leaf/radius_px", self.manual_leaf_radius_px)
         super().closeEvent(event)
 
     @staticmethod
@@ -205,6 +230,23 @@ class MainWindow(QMainWindow):
         if isinstance(value, (bytes, bytearray)):
             return QByteArray(value)
         return None
+
+    @staticmethod
+    def _settings_int(value: object, default: int) -> int:
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return default
+
+    def build_manual_leaf_radius_widget(self) -> QWidget:
+        widget = QWidget()
+        layout = QGridLayout()
+        layout.setContentsMargins(18, 0, 0, 0)
+        layout.addWidget(QLabel("Pinselgroesse"), 0, 0)
+        layout.addWidget(self.manual_leaf_radius_slider, 0, 1)
+        layout.addWidget(self.manual_leaf_radius_label, 0, 2)
+        widget.setLayout(layout)
+        return widget
 
     def build_manual_adjust_layout(self) -> QGridLayout:
         layout = QGridLayout()
@@ -296,6 +338,7 @@ class MainWindow(QMainWindow):
                     manual_petri_circle=self.manual_petri_circle,
                     excluded_component_points=tuple(self.excluded_component_points),
                     manual_leaf_points=tuple(self.manual_leaf_points),
+                    manual_leaf_radius_px=self.manual_leaf_radius_px,
                 ),
             )
         except Exception as error:  # noqa: BLE001
@@ -358,6 +401,7 @@ class MainWindow(QMainWindow):
                     manual_petri_circle=self.manual_petri_circle,
                     excluded_component_points=tuple(self.excluded_component_points),
                     manual_leaf_points=tuple(self.manual_leaf_points),
+                    manual_leaf_radius_px=self.manual_leaf_radius_px,
                 ),
             )
         except Exception as error:  # noqa: BLE001
@@ -402,6 +446,7 @@ class MainWindow(QMainWindow):
                     manual_petri_circle=self.manual_petri_circle,
                     excluded_component_points=tuple(self.excluded_component_points),
                     manual_leaf_points=tuple(self.manual_leaf_points),
+                    manual_leaf_radius_px=self.manual_leaf_radius_px,
                 ),
                 manual_petri_circle=self.manual_petri_circle,
             )
@@ -488,6 +533,13 @@ class MainWindow(QMainWindow):
         self.manual_leaf_points.append(point)
         self.reanalyze_current_image()
 
+    def set_manual_leaf_radius(self, radius_px: int) -> None:
+        self.manual_leaf_radius_px = radius_px
+        self.manual_leaf_radius_label.setText(str(radius_px))
+        self.update_addition_markers()
+        if self.manual_leaf_points:
+            self.reanalyze_current_image()
+
     def reset_excluded_components(self) -> None:
         if not self.excluded_component_points:
             return
@@ -500,6 +552,13 @@ class MainWindow(QMainWindow):
             return
 
         self.manual_leaf_points = []
+        self.reanalyze_current_image()
+
+    def undo_last_added_leaf_area(self) -> None:
+        if not self.manual_leaf_points:
+            return
+
+        self.manual_leaf_points.pop()
         self.reanalyze_current_image()
 
     def update_petri_overlay(self) -> None:
@@ -518,8 +577,14 @@ class MainWindow(QMainWindow):
         self.result_viewer.set_exclusion_points(self.excluded_component_points)
 
     def update_addition_markers(self) -> None:
-        self.original_viewer.set_addition_points(self.manual_leaf_points)
-        self.result_viewer.set_addition_points(self.manual_leaf_points)
+        self.original_viewer.set_addition_points(
+            self.manual_leaf_points,
+            self.manual_leaf_radius_px,
+        )
+        self.result_viewer.set_addition_points(
+            self.manual_leaf_points,
+            self.manual_leaf_radius_px,
+        )
 
     def update_filename_display(self) -> None:
         if self.current_image_path is None:

@@ -1,0 +1,23 @@
+Titel: Kleine Pflanzen mit starkem Kontrast zum dunklen Medium
+
+Datei: klein_starker_kontrast_gruen_zu_medium.jpg
+Kategorie: einfacher bis mittlerer Referenzfall
+
+Bildbeschreibung:
+Vier kleine Pflanzen liegen klar getrennt in einer Petrischale mit sehr dunklem Medium. Die Blaetter sind
+relativ gut gruen sichtbar und heben sich deutlich vom Medium ab. Um die Pflanzen herum gibt es leichte
+helle/blaeuliche Saeume und einzelne feine Wurzel- oder Reflexstrukturen.
+
+Analyseziel:
+Nur die sichtbaren Blattflaechen der vier kleinen Pflanzen sollen erkannt werden. Dunkles Medium, Glasrand,
+Kalibrierpapier, Farbsaeume und feine helle Wurzelreste sollen ausgeschlossen bleiben.
+
+Warum dieses Bild wichtig ist:
+Dieses Bild sollte fuer Auto-Vorschlag und Standard-/Dunkle-Blaetter-Presets gut loesbar sein. Wenn dieses
+Bild schlecht funktioniert, ist der Algorithmus fuer einfache dunkle Medien zu streng oder zu empfindlich.
+
+Vermutlich relevante Regler:
+- S min: mittel bis hoch, weil Blattgruen klarer ist als Wurzeln/Saeume.
+- Min Flaeche: nicht zu hoch, weil die Pflanzen klein sind.
+- Innenradius %: so setzen, dass Rand und Glas nicht stoeren.
+
