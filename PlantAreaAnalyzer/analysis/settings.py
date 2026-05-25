@@ -38,3 +38,4 @@ class AnalysisSettings:
     excluded_component_points: tuple[tuple[int, int], ...] = ()
     manual_leaf_points: tuple[tuple[int, int], ...] = ()
     manual_leaf_radius_px: int = 14
+    manual_leaf_patches: tuple[tuple[int, int, int], ...] = ()

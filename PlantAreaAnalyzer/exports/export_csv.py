@@ -42,6 +42,7 @@ CSV_FIELDNAMES = [
     "excluded_component_points",
     "manual_leaf_points",
     "manual_leaf_radius_px",
+    "manual_leaf_patches",
 ]
 
 
@@ -55,6 +56,7 @@ def export_analysis_to_csv(
     """Append one analysis result to a CSV file, creating a header if needed."""
 
     csv_path.parent.mkdir(parents=True, exist_ok=True)
+    ensure_csv_header(csv_path)
     write_header = not csv_path.exists() or csv_path.stat().st_size == 0
 
     with csv_path.open("a", newline="", encoding="utf-8-sig") as csv_file:
@@ -71,6 +73,36 @@ def export_analysis_to_csv(
         )
 
 
+def ensure_csv_header(csv_path: Path) -> None:
+    """Upgrade older result CSV files so appending keeps a consistent header."""
+
+    if not csv_path.exists() or csv_path.stat().st_size == 0:
+        return
+
+    with csv_path.open(newline="", encoding="utf-8-sig") as csv_file:
+        reader = csv.DictReader(csv_file)
+        existing_fieldnames = reader.fieldnames or []
+        rows = list(reader)
+
+    missing_fieldnames = [
+        fieldname for fieldname in CSV_FIELDNAMES
+        if fieldname not in existing_fieldnames
+    ]
+    if not missing_fieldnames:
+        return
+
+    with csv_path.open("w", newline="", encoding="utf-8-sig") as csv_file:
+        writer = csv.DictWriter(csv_file, fieldnames=CSV_FIELDNAMES)
+        writer.writeheader()
+        for row in rows:
+            writer.writerow(
+                {
+                    fieldname: row.get(fieldname, "")
+                    for fieldname in CSV_FIELDNAMES
+                }
+            )
+
+
 def build_export_row(
     image_path: Path,
     measurement: MeasurementResult,
@@ -78,6 +110,10 @@ def build_export_row(
     settings: AnalysisSettings,
 ) -> dict[str, str | int | float]:
     thresholds = settings.thresholds
+    manual_leaf_points = settings.manual_leaf_points or tuple(
+        (point_x, point_y)
+        for point_x, point_y, _radius_px in settings.manual_leaf_patches
+    )
     return {
         "timestamp": datetime.now().isoformat(timespec="seconds"),
         "analysis_version": ANALYSIS_VERSION,
@@ -107,6 +143,7 @@ def build_export_row(
         "morphology_kernel_size": settings.morphology_kernel_size,
         "manual_petri_circle": json.dumps(settings.manual_petri_circle),
         "excluded_component_points": json.dumps(settings.excluded_component_points),
-        "manual_leaf_points": json.dumps(settings.manual_leaf_points),
+        "manual_leaf_points": json.dumps(manual_leaf_points),
         "manual_leaf_radius_px": settings.manual_leaf_radius_px,
+        "manual_leaf_patches": json.dumps(settings.manual_leaf_patches),
     }

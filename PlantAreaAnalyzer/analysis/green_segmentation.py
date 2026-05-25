@@ -92,6 +92,7 @@ def analyze_green_area(
         cleaned_mask,
         settings.manual_leaf_points,
         settings.manual_leaf_radius_px,
+        settings.manual_leaf_patches,
     )
     cleaned_mask = cv2.bitwise_and(cleaned_mask, dish_mask)
 
@@ -548,10 +549,11 @@ def add_leaf_area_at_points(
     mask: np.ndarray,
     points: tuple[tuple[int, int], ...],
     radius_px: int = 14,
+    patches: tuple[tuple[int, int, int], ...] = (),
 ) -> np.ndarray:
     """Add small manual leaf-area patches around clicked points."""
 
-    if not points or radius_px <= 0:
+    if not points and not patches:
         return mask
 
     height, width = mask.shape
@@ -562,6 +564,13 @@ def add_leaf_area_at_points(
             continue
 
         cv2.circle(corrected, (point_x, point_y), radius, 255, -1)
+
+    for point_x, point_y, patch_radius_px in patches:
+        if point_x < 0 or point_y < 0 or point_x >= width or point_y >= height:
+            continue
+
+        patch_radius = max(1, int(patch_radius_px))
+        cv2.circle(corrected, (point_x, point_y), patch_radius, 255, -1)
 
     return corrected
 

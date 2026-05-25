@@ -44,6 +44,7 @@ class MainWindow(QMainWindow):
         self.manual_petri_circle: Optional[tuple[int, int, int]] = None
         self.excluded_component_points: list[tuple[int, int]] = []
         self.manual_leaf_points: list[tuple[int, int]] = []
+        self.manual_leaf_patches: list[tuple[int, int, int]] = []
         self.manual_leaf_radius_px = self._settings_int(
             self._settings.value("manual_leaf/radius_px"),
             self.DEFAULT_MANUAL_LEAF_RADIUS_PX,
@@ -323,6 +324,7 @@ class MainWindow(QMainWindow):
         self.manual_petri_circle = None
         self.excluded_component_points = []
         self.manual_leaf_points = []
+        self.manual_leaf_patches = []
         self.reanalyze_current_image()
 
     def reanalyze_current_image(self) -> None:
@@ -339,6 +341,7 @@ class MainWindow(QMainWindow):
                     excluded_component_points=tuple(self.excluded_component_points),
                     manual_leaf_points=tuple(self.manual_leaf_points),
                     manual_leaf_radius_px=self.manual_leaf_radius_px,
+                    manual_leaf_patches=tuple(self.manual_leaf_patches),
                 ),
             )
         except Exception as error:  # noqa: BLE001
@@ -402,6 +405,7 @@ class MainWindow(QMainWindow):
                     excluded_component_points=tuple(self.excluded_component_points),
                     manual_leaf_points=tuple(self.manual_leaf_points),
                     manual_leaf_radius_px=self.manual_leaf_radius_px,
+                    manual_leaf_patches=tuple(self.manual_leaf_patches),
                 ),
             )
         except Exception as error:  # noqa: BLE001
@@ -447,6 +451,7 @@ class MainWindow(QMainWindow):
                     excluded_component_points=tuple(self.excluded_component_points),
                     manual_leaf_points=tuple(self.manual_leaf_points),
                     manual_leaf_radius_px=self.manual_leaf_radius_px,
+                    manual_leaf_patches=tuple(self.manual_leaf_patches),
                 ),
                 manual_petri_circle=self.manual_petri_circle,
             )
@@ -530,15 +535,16 @@ class MainWindow(QMainWindow):
         self.reanalyze_current_image()
 
     def add_leaf_area_at_point(self, point: tuple[int, int]) -> None:
-        self.manual_leaf_points.append(point)
+        point_x, point_y = point
+        self.manual_leaf_patches.append(
+            (point_x, point_y, self.manual_leaf_radius_px)
+        )
         self.reanalyze_current_image()
 
     def set_manual_leaf_radius(self, radius_px: int) -> None:
         self.manual_leaf_radius_px = radius_px
         self.manual_leaf_radius_label.setText(str(radius_px))
         self.update_addition_markers()
-        if self.manual_leaf_points:
-            self.reanalyze_current_image()
 
     def reset_excluded_components(self) -> None:
         if not self.excluded_component_points:
@@ -548,17 +554,18 @@ class MainWindow(QMainWindow):
         self.reanalyze_current_image()
 
     def reset_added_leaf_area(self) -> None:
-        if not self.manual_leaf_points:
+        if not self.manual_leaf_patches:
             return
 
         self.manual_leaf_points = []
+        self.manual_leaf_patches = []
         self.reanalyze_current_image()
 
     def undo_last_added_leaf_area(self) -> None:
-        if not self.manual_leaf_points:
+        if not self.manual_leaf_patches:
             return
 
-        self.manual_leaf_points.pop()
+        self.manual_leaf_patches.pop()
         self.reanalyze_current_image()
 
     def update_petri_overlay(self) -> None:
@@ -577,14 +584,8 @@ class MainWindow(QMainWindow):
         self.result_viewer.set_exclusion_points(self.excluded_component_points)
 
     def update_addition_markers(self) -> None:
-        self.original_viewer.set_addition_points(
-            self.manual_leaf_points,
-            self.manual_leaf_radius_px,
-        )
-        self.result_viewer.set_addition_points(
-            self.manual_leaf_points,
-            self.manual_leaf_radius_px,
-        )
+        self.original_viewer.set_addition_patches(self.manual_leaf_patches)
+        self.result_viewer.set_addition_patches(self.manual_leaf_patches)
 
     def update_filename_display(self) -> None:
         if self.current_image_path is None:

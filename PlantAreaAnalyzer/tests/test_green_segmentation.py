@@ -126,6 +126,34 @@ def test_add_leaf_area_at_points_adds_small_manual_patch() -> None:
     assert corrected[10, 14] == 0
 
 
+def test_add_leaf_area_at_points_preserves_radius_per_patch() -> None:
+    mask = np.zeros((40, 40), dtype=np.uint8)
+
+    corrected = add_leaf_area_at_points(
+        mask,
+        (),
+        patches=((10, 10, 3), (28, 10, 7)),
+    )
+
+    assert corrected[10, 13] == 255
+    assert corrected[10, 14] == 0
+    assert corrected[10, 35] == 255
+    assert corrected[10, 36] == 0
+
+
+def test_add_leaf_area_at_points_overlaps_count_as_union() -> None:
+    mask = np.zeros((40, 40), dtype=np.uint8)
+
+    once = add_leaf_area_at_points(mask, (), patches=((20, 20, 6),))
+    twice = add_leaf_area_at_points(
+        mask,
+        (),
+        patches=((20, 20, 6), (20, 20, 6)),
+    )
+
+    assert np.count_nonzero(twice) == np.count_nonzero(once)
+
+
 def test_nearest_component_label_ignores_far_components() -> None:
     labels = np.zeros((12, 12), dtype=np.int32)
     labels[9:11, 9:11] = 3
