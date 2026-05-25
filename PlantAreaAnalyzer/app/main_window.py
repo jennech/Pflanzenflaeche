@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
     QCheckBox,
     QFileDialog,
     QGridLayout,
+    QGroupBox,
     QLabel,
     QMainWindow,
     QMessageBox,
@@ -50,8 +51,8 @@ class MainWindow(QMainWindow):
             self.DEFAULT_MANUAL_LEAF_RADIUS_PX,
         )
 
-        load_button = QPushButton("Bild laden")
-        load_button.clicked.connect(self.load_image)
+        self.load_button = QPushButton("Bild laden")
+        self.load_button.clicked.connect(self.load_image)
         self.csv_export_button = QPushButton("CSV speichern")
         self.csv_export_button.setEnabled(False)
         self.csv_export_button.clicked.connect(self.save_csv_export)
@@ -85,8 +86,8 @@ class MainWindow(QMainWindow):
 
         self.exclude_component_checkbox = QCheckBox("Stoerflaeche per Klick entfernen")
         self.exclude_component_checkbox.toggled.connect(self.toggle_exclusion_mode)
-        reset_exclusions_button = QPushButton("Entfernte Flaechen zuruecksetzen")
-        reset_exclusions_button.clicked.connect(self.reset_excluded_components)
+        self.reset_exclusions_button = QPushButton("Entfernte Flaechen zuruecksetzen")
+        self.reset_exclusions_button.clicked.connect(self.reset_excluded_components)
         self.add_leaf_checkbox = QCheckBox("Blattflaeche per Klick hinzufuegen")
         self.add_leaf_checkbox.toggled.connect(self.toggle_add_leaf_mode)
         self.manual_leaf_radius_label = QLabel(str(self.manual_leaf_radius_px))
@@ -100,13 +101,17 @@ class MainWindow(QMainWindow):
         self.manual_leaf_radius_slider.valueChanged.connect(
             self.set_manual_leaf_radius
         )
-        undo_added_leaf_button = QPushButton("Letzten Blatt-Klick rueckgaengig")
-        undo_added_leaf_button.setToolTip(
+        self.manual_leaf_radius_widget = self.build_manual_leaf_radius_widget()
+        self.manual_leaf_radius_widget.setVisible(False)
+        self.undo_added_leaf_button = QPushButton("Letzten Blatt-Klick rueckgaengig")
+        self.undo_added_leaf_button.setToolTip(
             "Entfernt nur die zuletzt manuell hinzugefuegte Blattflaeche."
         )
-        undo_added_leaf_button.clicked.connect(self.undo_last_added_leaf_area)
-        reset_added_leaf_button = QPushButton("Hinzugefuegte Flaechen zuruecksetzen")
-        reset_added_leaf_button.clicked.connect(self.reset_added_leaf_area)
+        self.undo_added_leaf_button.clicked.connect(self.undo_last_added_leaf_area)
+        self.undo_added_leaf_button.setVisible(False)
+        self.reset_added_leaf_button = QPushButton("Hinzugefuegte Flaechen zuruecksetzen")
+        self.reset_added_leaf_button.clicked.connect(self.reset_added_leaf_area)
+        self.reset_added_leaf_button.setVisible(False)
 
         self.manual_adjust_toggle = QToolButton()
         self.manual_adjust_toggle.setText("Manuelle Korrektur anzeigen")
@@ -131,19 +136,8 @@ class MainWindow(QMainWindow):
         right_layout = QVBoxLayout()
         right_layout.setContentsMargins(8, 8, 8, 8)
         right_layout.setSpacing(8)
-        right_layout.addWidget(load_button)
-        right_layout.addWidget(self.filename_label)
-        right_layout.addWidget(self.csv_export_button)
-        right_layout.addWidget(self.auto_settings_button)
-        right_layout.addWidget(self.guided_settings_button)
-        right_layout.addWidget(self.show_petri_checkbox)
-        right_layout.addWidget(self.manual_petri_checkbox)
-        right_layout.addWidget(self.exclude_component_checkbox)
-        right_layout.addWidget(reset_exclusions_button)
-        right_layout.addWidget(self.add_leaf_checkbox)
-        right_layout.addWidget(self.build_manual_leaf_radius_widget())
-        right_layout.addWidget(undo_added_leaf_button)
-        right_layout.addWidget(reset_added_leaf_button)
+        right_layout.addWidget(self.build_file_actions_group())
+        right_layout.addWidget(self.build_correction_group())
         right_layout.addWidget(self.manual_adjust_toggle)
         right_layout.addWidget(self.manual_adjust_panel)
         right_layout.addWidget(self.settings_panel)
@@ -223,6 +217,31 @@ class MainWindow(QMainWindow):
         self._settings.setValue("splitter/right", self.right_splitter.saveState())
         self._settings.setValue("manual_leaf/radius_px", self.manual_leaf_radius_px)
         super().closeEvent(event)
+
+    def build_file_actions_group(self) -> QGroupBox:
+        group = QGroupBox("Datei")
+        layout = QVBoxLayout()
+        layout.addWidget(self.load_button)
+        layout.addWidget(self.filename_label)
+        layout.addWidget(self.csv_export_button)
+        layout.addWidget(self.auto_settings_button)
+        layout.addWidget(self.guided_settings_button)
+        group.setLayout(layout)
+        return group
+
+    def build_correction_group(self) -> QGroupBox:
+        group = QGroupBox("Ansicht und manuelle Korrektur")
+        layout = QVBoxLayout()
+        layout.addWidget(self.show_petri_checkbox)
+        layout.addWidget(self.manual_petri_checkbox)
+        layout.addWidget(self.exclude_component_checkbox)
+        layout.addWidget(self.reset_exclusions_button)
+        layout.addWidget(self.add_leaf_checkbox)
+        layout.addWidget(self.manual_leaf_radius_widget)
+        layout.addWidget(self.undo_added_leaf_button)
+        layout.addWidget(self.reset_added_leaf_button)
+        group.setLayout(layout)
+        return group
 
     @staticmethod
     def _to_qbytearray(value: object) -> QByteArray | None:
@@ -527,6 +546,9 @@ class MainWindow(QMainWindow):
             self.manual_petri_checkbox.setChecked(False)
         if enabled and self.exclude_component_checkbox.isChecked():
             self.exclude_component_checkbox.setChecked(False)
+        self.manual_leaf_radius_widget.setVisible(enabled)
+        self.undo_added_leaf_button.setVisible(enabled)
+        self.reset_added_leaf_button.setVisible(enabled)
         self.original_viewer.set_addition_mode_enabled(enabled)
         self.result_viewer.set_addition_mode_enabled(enabled)
 

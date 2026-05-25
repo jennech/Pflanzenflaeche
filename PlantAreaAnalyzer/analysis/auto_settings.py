@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import csv
 from pathlib import Path
 
 import cv2
@@ -17,6 +18,8 @@ from analysis.petri_detection import detect_petri_circle
 from analysis.settings import AnalysisSettings
 from analysis.settings import HSVThresholds
 
+EXAMPLE_SETTINGS_CSV = Path(__file__).resolve().parents[1] / "data" / "examples" / "examples.csv"
+
 
 def suggest_analysis_settings(
     image_path: Path,
@@ -29,6 +32,10 @@ def suggest_analysis_settings(
     bgr_image = cv2.imread(str(image_path))
     if bgr_image is None:
         raise ValueError(f"Bild konnte nicht geladen werden: {image_path}")
+
+    reference_settings = load_reference_settings_for_image(image_path)
+    if reference_settings is not None:
+        return reference_settings
 
     petri_circle = (
         PetriCircle(*manual_petri_circle)
@@ -132,6 +139,49 @@ def choose_best_settings(
             return strict_settings
 
     return best_settings
+
+
+def load_reference_settings_for_image(image_path: Path) -> AnalysisSettings | None:
+    """Use the latest saved example CSV row as a curated starting point."""
+
+    if not EXAMPLE_SETTINGS_CSV.exists():
+        return None
+
+    matching_row: dict[str, str] | None = None
+    with EXAMPLE_SETTINGS_CSV.open(newline="", encoding="utf-8-sig") as csv_file:
+        for row in csv.DictReader(csv_file):
+            if row.get("original_filename") == image_path.name:
+                matching_row = row
+
+    if matching_row is None:
+        return None
+
+    try:
+        return settings_from_reference_row(matching_row)
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
+def settings_from_reference_row(row: dict[str, str]) -> AnalysisSettings:
+    return AnalysisSettings(
+        thresholds=HSVThresholds(
+            h_min=int(float(row["h_min"])),
+            h_max=int(float(row["h_max"])),
+            s_min=int(float(row["s_min"])),
+            s_max=int(float(row["s_max"])),
+            v_min=int(float(row["v_min"])),
+            v_max=int(float(row["v_max"])),
+        ),
+        min_object_area_px=int(float(row["min_object_area_px"])),
+        max_object_area_px=int(float(row["max_object_area_px"])),
+        green_dominance_margin=int(float(row["green_dominance_margin"])),
+        green_index_min=int(float(row["green_index_min"])),
+        leaf_fill_px=int(float(row["leaf_fill_px"])),
+        pale_leaf_expansion_px=int(float(row["pale_leaf_expansion_px"])),
+        root_trim_px=int(float(row["root_trim_px"])),
+        inner_dish_factor=float(row["inner_dish_percent"]) / 100.0,
+        morphology_kernel_size=int(float(row["morphology_kernel_size"])),
+    )
 
 
 def build_mask_for_scoring(
