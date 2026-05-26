@@ -48,30 +48,32 @@ def test_leaf_candidate_mask_ignores_thin_root_like_components() -> None:
     assert not candidate_mask[55, 40]
 
 
-def test_auto_settings_uses_latest_example_csv_row(
+def test_auto_settings_uses_latest_similar_example_csv_row(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     image = np.full((40, 40, 3), [40, 80, 40], dtype=np.uint8)
-    image_path = tmp_path / "klein_blass_stoerfleck.jpg"
+    image_path = tmp_path / "neues_bild_anderer_name.jpg"
     cv2.imwrite(str(image_path), image)
+    reference_path = tmp_path / "klein_blass_stoerfleck.jpg"
+    cv2.imwrite(str(reference_path), image)
 
     csv_path = tmp_path / "examples.csv"
     csv_path.write_text(
         "\n".join(
             [
                 (
-                    "original_filename,h_min,h_max,s_min,s_max,v_min,v_max,"
+                    "image_path,original_filename,h_min,h_max,s_min,s_max,v_min,v_max,"
                     "min_object_area_px,max_object_area_px,green_dominance_margin,"
                     "green_index_min,leaf_fill_px,pale_leaf_expansion_px,"
                     "root_trim_px,inner_dish_percent,morphology_kernel_size"
                 ),
                 (
-                    "klein_blass_stoerfleck.jpg,10,90,50,255,20,255,"
+                    f"{reference_path},klein_blass_stoerfleck.jpg,10,90,50,255,20,255,"
                     "100,50000,5,10,1,8,2,80,3"
                 ),
                 (
-                    "klein_blass_stoerfleck.jpg,43,82,231,255,57,255,"
+                    f"{reference_path},klein_blass_stoerfleck.jpg,43,82,231,255,57,255,"
                     "1454,120000,10,46,2,28,10,78,3"
                 ),
             ]
@@ -87,3 +89,45 @@ def test_auto_settings_uses_latest_example_csv_row(
     assert settings.min_object_area_px == 1454
     assert settings.pale_leaf_expansion_px == 28
     assert settings.inner_dish_factor == 0.78
+
+
+def test_auto_settings_ignores_dissimilar_example_csv_row(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    image = np.full((80, 80, 3), [40, 36, 30], dtype=np.uint8)
+    cv2.circle(image, (40, 40), 14, [45, 85, 42], -1)
+    image_path = tmp_path / "neues_dunkles_bild.jpg"
+    cv2.imwrite(str(image_path), image)
+
+    reference_image = np.full((80, 80, 3), [245, 245, 245], dtype=np.uint8)
+    reference_path = tmp_path / "helles_referenzbild.jpg"
+    cv2.imwrite(str(reference_path), reference_image)
+
+    csv_path = tmp_path / "examples.csv"
+    csv_path.write_text(
+        "\n".join(
+            [
+                (
+                    "image_path,original_filename,h_min,h_max,s_min,s_max,v_min,v_max,"
+                    "min_object_area_px,max_object_area_px,green_dominance_margin,"
+                    "green_index_min,leaf_fill_px,pale_leaf_expansion_px,"
+                    "root_trim_px,inner_dish_percent,morphology_kernel_size"
+                ),
+                (
+                    f"{reference_path},helles_referenzbild.jpg,1,2,3,4,5,6,"
+                    "7,8,9,10,11,12,13,14,15"
+                ),
+            ]
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(auto_settings, "EXAMPLE_SETTINGS_CSV", csv_path)
+
+    settings = suggest_analysis_settings(
+        image_path,
+        manual_petri_circle=(40, 40, 35),
+    )
+
+    assert settings.thresholds.h_min != 1
+    assert settings.min_object_area_px != 7

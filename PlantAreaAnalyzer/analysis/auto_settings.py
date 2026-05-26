@@ -19,6 +19,8 @@ from analysis.settings import AnalysisSettings
 from analysis.settings import HSVThresholds
 
 EXAMPLE_SETTINGS_CSV = Path(__file__).resolve().parents[1] / "data" / "examples" / "examples.csv"
+EXAMPLE_SETTINGS_DIR = EXAMPLE_SETTINGS_CSV.parent
+REFERENCE_DISTANCE_LIMIT = 0.42
 
 
 def suggest_analysis_settings(
@@ -33,7 +35,7 @@ def suggest_analysis_settings(
     if bgr_image is None:
         raise ValueError(f"Bild konnte nicht geladen werden: {image_path}")
 
-    reference_settings = load_reference_settings_for_image(image_path)
+    reference_settings = load_reference_settings_for_similar_image(image_path, bgr_image)
     if reference_settings is not None:
         return reference_settings
 
@@ -141,25 +143,101 @@ def choose_best_settings(
     return best_settings
 
 
-def load_reference_settings_for_image(image_path: Path) -> AnalysisSettings | None:
-    """Use the latest saved example CSV row as a curated starting point."""
+def load_reference_settings_for_similar_image(
+    image_path: Path,
+    bgr_image: np.ndarray,
+) -> AnalysisSettings | None:
+    """Use the closest visually similar example CSV row as a curated start."""
 
     if not EXAMPLE_SETTINGS_CSV.exists():
         return None
 
-    matching_row: dict[str, str] | None = None
+    current_signature = image_similarity_signature(bgr_image)
+    closest_row: dict[str, str] | None = None
+    closest_distance = float("inf")
     with EXAMPLE_SETTINGS_CSV.open(newline="", encoding="utf-8-sig") as csv_file:
         for row in csv.DictReader(csv_file):
-            if row.get("original_filename") == image_path.name:
-                matching_row = row
+            reference_path = reference_image_path(row)
+            if reference_path is None:
+                continue
 
-    if matching_row is None:
+            reference_image = cv2.imread(str(reference_path))
+            if reference_image is None:
+                continue
+
+            distance = signature_distance(
+                current_signature,
+                image_similarity_signature(reference_image),
+            )
+            if distance <= closest_distance:
+                closest_distance = distance
+                closest_row = row
+
+    if closest_row is None or closest_distance > REFERENCE_DISTANCE_LIMIT:
         return None
 
     try:
-        return settings_from_reference_row(matching_row)
+        return settings_from_reference_row(closest_row)
     except (KeyError, TypeError, ValueError):
         return None
+
+
+def reference_image_path(row: dict[str, str]) -> Path | None:
+    image_path = Path(row.get("image_path", ""))
+    if image_path.exists():
+        return image_path
+
+    original_filename = row.get("original_filename", "")
+    fallback_path = EXAMPLE_SETTINGS_DIR / original_filename
+    if fallback_path.exists():
+        return fallback_path
+
+    return None
+
+
+def image_similarity_signature(bgr_image: np.ndarray) -> np.ndarray:
+    hsv_image = cv2.cvtColor(bgr_image, cv2.COLOR_BGR2HSV)
+    try:
+        petri_circle = detect_petri_circle(bgr_image)
+        dish_mask = build_petri_mask(hsv_image.shape[:2], petri_circle, shrink_factor=0.88)
+    except ValueError:
+        dish_mask = np.full(hsv_image.shape[:2], 255, dtype=np.uint8)
+
+    dish_pixels = dish_mask > 0
+    candidate_mask = build_leaf_candidate_mask(bgr_image, hsv_image, dish_mask)
+    candidate_pixels = candidate_mask > 0
+    dish_area = max(1, int(np.count_nonzero(dish_pixels)))
+    candidate_ratio = np.count_nonzero(candidate_pixels) / dish_area
+
+    dish_hsv = hsv_image[dish_pixels]
+    if dish_hsv.size == 0:
+        dish_hsv = hsv_image.reshape(-1, 3)
+
+    if np.any(candidate_pixels):
+        leaf_hsv = hsv_image[candidate_pixels]
+    else:
+        leaf_hsv = dish_hsv
+
+    return np.array(
+        [
+            float(np.mean(dish_hsv[:, 0]) / 179.0),
+            float(np.std(dish_hsv[:, 0]) / 179.0),
+            float(np.mean(dish_hsv[:, 1]) / 255.0),
+            float(np.std(dish_hsv[:, 1]) / 255.0),
+            float(np.mean(dish_hsv[:, 2]) / 255.0),
+            float(np.std(dish_hsv[:, 2]) / 255.0),
+            float(min(candidate_ratio * 8.0, 1.0)),
+            float(np.median(leaf_hsv[:, 0]) / 179.0),
+            float(np.median(leaf_hsv[:, 1]) / 255.0),
+            float(np.median(leaf_hsv[:, 2]) / 255.0),
+        ],
+        dtype=np.float32,
+    )
+
+
+def signature_distance(first: np.ndarray, second: np.ndarray) -> float:
+    weights = np.array([0.6, 0.3, 1.0, 0.7, 0.8, 0.5, 1.4, 0.8, 1.2, 0.8])
+    return float(np.linalg.norm((first - second) * weights))
 
 
 def settings_from_reference_row(row: dict[str, str]) -> AnalysisSettings:
