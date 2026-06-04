@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import csv
+import json
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -14,8 +14,7 @@ from analysis.settings import AnalysisSettings
 from analysis.settings import HSVThresholds
 
 
-EXAMPLES_DIR = PROJECT_ROOT / "data" / "examples"
-EXAMPLES_CSV = EXAMPLES_DIR / "examples.csv"
+REFERENCE_SETTINGS_JSON = PROJECT_ROOT / "data" / "reference" / "reference_settings.json"
 
 
 @dataclass(frozen=True)
@@ -27,9 +26,9 @@ class ExampleReference:
 
 
 def main() -> None:
-    references = load_references(EXAMPLES_CSV)
+    references = load_references(REFERENCE_SETTINGS_JSON)
     if not references:
-        print(f"Keine Referenzwerte gefunden: {EXAMPLES_CSV}")
+        print(f"Keine Referenzwerte gefunden: {REFERENCE_SETTINGS_JSON}")
         return
 
     print("Bild; Referenz px; Auto px; Abweichung %; Auto-Werte")
@@ -46,50 +45,69 @@ def main() -> None:
         )
 
 
-def load_references(csv_path: Path) -> list[ExampleReference]:
-    if not csv_path.exists():
+def load_references(json_path: Path) -> list[ExampleReference]:
+    if not json_path.exists():
         return []
 
-    references_by_filename: dict[str, ExampleReference] = {}
-    with csv_path.open(newline="", encoding="utf-8-sig") as csv_file:
-        for row in csv.DictReader(csv_file):
-            image_path = Path(row["image_path"])
-            if not image_path.exists():
-                fallback_path = EXAMPLES_DIR / row["original_filename"]
-                image_path = fallback_path
-            if not image_path.exists():
-                continue
+    with json_path.open(encoding="utf-8") as reference_file:
+        data = json.load(reference_file)
 
-            references_by_filename[row["original_filename"]] = (
-                ExampleReference(
-                    image_path=image_path,
-                    filename=row["original_filename"],
-                    green_pixels=int(row["green_pixels"]),
-                    settings=settings_from_row(row),
-                )
+    references = []
+    for entry in data.get("references", []):
+        if not isinstance(entry, dict):
+            continue
+
+        image_path = resolve_reference_image_path(entry, json_path.parent)
+        if image_path is None:
+            continue
+
+        references.append(
+            ExampleReference(
+                image_path=image_path,
+                filename=image_path.name,
+                green_pixels=int(entry.get("expected_green_pixels", 0)),
+                settings=settings_from_entry(entry),
             )
-    return list(references_by_filename.values())
+        )
+
+    return references
 
 
-def settings_from_row(row: dict[str, str]) -> AnalysisSettings:
+def resolve_reference_image_path(entry: dict[str, object], base_dir: Path) -> Path | None:
+    image_value = entry.get("image", "")
+    if not isinstance(image_value, str):
+        return None
+
+    image_path = Path(image_value)
+    for candidate in (image_path, base_dir / image_path, PROJECT_ROOT / image_path):
+        if candidate.exists():
+            return candidate
+    return None
+
+
+def settings_from_entry(entry: dict[str, object]) -> AnalysisSettings:
+    settings = entry["settings"]
+    if not isinstance(settings, dict):
+        raise TypeError("settings must be an object")
+
     return AnalysisSettings(
         thresholds=HSVThresholds(
-            h_min=int(float(row["h_min"])),
-            h_max=int(float(row["h_max"])),
-            s_min=int(float(row["s_min"])),
-            s_max=int(float(row["s_max"])),
-            v_min=int(float(row["v_min"])),
-            v_max=int(float(row["v_max"])),
+            h_min=int(float(settings["h_min"])),
+            h_max=int(float(settings["h_max"])),
+            s_min=int(float(settings["s_min"])),
+            s_max=int(float(settings["s_max"])),
+            v_min=int(float(settings["v_min"])),
+            v_max=int(float(settings["v_max"])),
         ),
-        min_object_area_px=int(float(row["min_object_area_px"])),
-        max_object_area_px=int(float(row["max_object_area_px"])),
-        green_dominance_margin=int(float(row["green_dominance_margin"])),
-        green_index_min=int(float(row["green_index_min"])),
-        leaf_fill_px=int(float(row["leaf_fill_px"])),
-        pale_leaf_expansion_px=int(float(row["pale_leaf_expansion_px"])),
-        root_trim_px=int(float(row["root_trim_px"])),
-        inner_dish_factor=float(row["inner_dish_percent"]) / 100.0,
-        morphology_kernel_size=int(float(row["morphology_kernel_size"])),
+        min_object_area_px=int(float(settings["min_object_area_px"])),
+        max_object_area_px=int(float(settings["max_object_area_px"])),
+        green_dominance_margin=int(float(settings["green_dominance_margin"])),
+        green_index_min=int(float(settings["green_index_min"])),
+        leaf_fill_px=int(float(settings["leaf_fill_px"])),
+        pale_leaf_expansion_px=int(float(settings["pale_leaf_expansion_px"])),
+        root_trim_px=int(float(settings["root_trim_px"])),
+        inner_dish_factor=float(settings["inner_dish_percent"]) / 100.0,
+        morphology_kernel_size=int(float(settings["morphology_kernel_size"])),
     )
 
 

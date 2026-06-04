@@ -24,9 +24,14 @@ PlantAreaAnalyzer/
 ├── app/
 ├── analysis/
 ├── data/
+│   ├── examples/
+│   └── reference/
 ├── exports/
 └── tests/
 ```
+
+`data/reference/reference_settings.json` enthaelt kuratierte App-Referenzen fuer `Werte vorschlagen`.
+Eigene Messergebnisse werden als CSV in `exports/` oder in einem eigenen Projektordner gespeichert und nicht in `data/reference/`.
 
 ## Installation
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import cv2
@@ -8,7 +9,10 @@ import pytest
 
 import analysis.auto_settings as auto_settings
 from analysis.auto_settings import build_leaf_candidate_mask
+from analysis.auto_settings import reference_settings_is_plausible_for_image
 from analysis.auto_settings import suggest_analysis_settings
+from analysis.settings import AnalysisSettings
+from analysis.settings import HSVThresholds
 
 
 def test_auto_settings_suggests_leaf_friendly_thresholds(tmp_path: Path) -> None:
@@ -48,7 +52,7 @@ def test_leaf_candidate_mask_ignores_thin_root_like_components() -> None:
     assert not candidate_mask[55, 40]
 
 
-def test_auto_settings_uses_latest_similar_example_csv_row(
+def test_auto_settings_uses_latest_similar_reference_json_entry(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -58,29 +62,54 @@ def test_auto_settings_uses_latest_similar_example_csv_row(
     reference_path = tmp_path / "klein_blass_stoerfleck.jpg"
     cv2.imwrite(str(reference_path), image)
 
-    csv_path = tmp_path / "examples.csv"
-    csv_path.write_text(
-        "\n".join(
-            [
-                (
-                    "image_path,original_filename,h_min,h_max,s_min,s_max,v_min,v_max,"
-                    "min_object_area_px,max_object_area_px,green_dominance_margin,"
-                    "green_index_min,leaf_fill_px,pale_leaf_expansion_px,"
-                    "root_trim_px,inner_dish_percent,morphology_kernel_size"
+    json_path = tmp_path / "reference_settings.json"
+    write_reference_json(
+        json_path,
+        [
+            {
+                "image": str(reference_path),
+                "settings": reference_settings(
+                    h_min=10,
+                    h_max=90,
+                    s_min=50,
+                    s_max=255,
+                    v_min=20,
+                    v_max=255,
+                    min_object_area_px=100,
+                    max_object_area_px=50000,
+                    green_dominance_margin=5,
+                    green_index_min=10,
+                    leaf_fill_px=1,
+                    pale_leaf_expansion_px=8,
+                    root_trim_px=2,
+                    inner_dish_percent=80,
+                    morphology_kernel_size=3,
                 ),
-                (
-                    f"{reference_path},klein_blass_stoerfleck.jpg,10,90,50,255,20,255,"
-                    "100,50000,5,10,1,8,2,80,3"
+            },
+            {
+                "image": str(reference_path),
+                "settings": reference_settings(
+                    h_min=43,
+                    h_max=82,
+                    s_min=231,
+                    s_max=255,
+                    v_min=57,
+                    v_max=255,
+                    min_object_area_px=1454,
+                    max_object_area_px=120000,
+                    green_dominance_margin=10,
+                    green_index_min=46,
+                    leaf_fill_px=2,
+                    pale_leaf_expansion_px=28,
+                    root_trim_px=10,
+                    inner_dish_percent=78,
+                    morphology_kernel_size=3,
                 ),
-                (
-                    f"{reference_path},klein_blass_stoerfleck.jpg,43,82,231,255,57,255,"
-                    "1454,120000,10,46,2,28,10,78,3"
-                ),
-            ]
-        ),
-        encoding="utf-8",
+            },
+        ],
     )
-    monkeypatch.setattr(auto_settings, "EXAMPLE_SETTINGS_CSV", csv_path)
+    monkeypatch.setattr(auto_settings, "REFERENCE_SETTINGS_JSON", json_path)
+    monkeypatch.setattr(auto_settings, "REFERENCE_SETTINGS_DIR", tmp_path)
 
     settings = suggest_analysis_settings(image_path)
 
@@ -91,7 +120,7 @@ def test_auto_settings_uses_latest_similar_example_csv_row(
     assert settings.inner_dish_factor == 0.78
 
 
-def test_auto_settings_ignores_dissimilar_example_csv_row(
+def test_auto_settings_ignores_dissimilar_reference_json_entry(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -104,25 +133,34 @@ def test_auto_settings_ignores_dissimilar_example_csv_row(
     reference_path = tmp_path / "helles_referenzbild.jpg"
     cv2.imwrite(str(reference_path), reference_image)
 
-    csv_path = tmp_path / "examples.csv"
-    csv_path.write_text(
-        "\n".join(
-            [
-                (
-                    "image_path,original_filename,h_min,h_max,s_min,s_max,v_min,v_max,"
-                    "min_object_area_px,max_object_area_px,green_dominance_margin,"
-                    "green_index_min,leaf_fill_px,pale_leaf_expansion_px,"
-                    "root_trim_px,inner_dish_percent,morphology_kernel_size"
+    json_path = tmp_path / "reference_settings.json"
+    write_reference_json(
+        json_path,
+        [
+            {
+                "image": str(reference_path),
+                "settings": reference_settings(
+                    h_min=1,
+                    h_max=2,
+                    s_min=3,
+                    s_max=4,
+                    v_min=5,
+                    v_max=6,
+                    min_object_area_px=7,
+                    max_object_area_px=8,
+                    green_dominance_margin=9,
+                    green_index_min=10,
+                    leaf_fill_px=11,
+                    pale_leaf_expansion_px=12,
+                    root_trim_px=13,
+                    inner_dish_percent=14,
+                    morphology_kernel_size=15,
                 ),
-                (
-                    f"{reference_path},helles_referenzbild.jpg,1,2,3,4,5,6,"
-                    "7,8,9,10,11,12,13,14,15"
-                ),
-            ]
-        ),
-        encoding="utf-8",
+            },
+        ],
     )
-    monkeypatch.setattr(auto_settings, "EXAMPLE_SETTINGS_CSV", csv_path)
+    monkeypatch.setattr(auto_settings, "REFERENCE_SETTINGS_JSON", json_path)
+    monkeypatch.setattr(auto_settings, "REFERENCE_SETTINGS_DIR", tmp_path)
 
     settings = suggest_analysis_settings(
         image_path,
@@ -131,3 +169,53 @@ def test_auto_settings_ignores_dissimilar_example_csv_row(
 
     assert settings.thresholds.h_min != 1
     assert settings.min_object_area_px != 7
+
+
+def test_reference_settings_reject_implausible_medium_flood() -> None:
+    image = np.full((220, 220, 3), [245, 245, 245], dtype=np.uint8)
+    cv2.circle(image, (110, 110), 92, [55, 75, 65], -1)
+    cv2.circle(image, (110, 110), 92, [190, 190, 190], 3)
+    cv2.circle(image, (110, 110), 78, [45, 70, 45], -1)
+    cv2.rectangle(image, (20, 80), (85, 190), [35, 120, 35], -1)
+    cv2.rectangle(image, (145, 50), (200, 175), [35, 120, 35], -1)
+
+    settings = AnalysisSettings(
+        thresholds=HSVThresholds(h_min=30, h_max=120, s_min=20, v_min=20),
+        min_object_area_px=0,
+        max_object_area_px=120000,
+        green_dominance_margin=0,
+        green_index_min=-30,
+        leaf_fill_px=2,
+        pale_leaf_expansion_px=5,
+        root_trim_px=0,
+        inner_dish_factor=0.86,
+    )
+
+    assert not reference_settings_is_plausible_for_image(image, settings)
+
+
+def test_reference_settings_accept_curated_examples() -> None:
+    for reference in auto_settings.load_reference_settings():
+        image_path = auto_settings.reference_image_path(reference)
+        assert image_path is not None
+        image = cv2.imread(str(image_path))
+        assert image is not None
+        settings = auto_settings.settings_from_reference_entry(reference)
+
+        assert reference_settings_is_plausible_for_image(image, settings)
+
+
+def reference_settings(**overrides: int) -> dict[str, int]:
+    return overrides
+
+
+def write_reference_json(path: Path, references: list[dict[str, object]]) -> None:
+    path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "references": references,
+            }
+        ),
+        encoding="utf-8",
+    )

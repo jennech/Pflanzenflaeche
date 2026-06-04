@@ -4,7 +4,7 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-from PySide6.QtCore import QByteArray, QSettings, Qt
+from PySide6.QtCore import QByteArray, QSettings, Qt, QTimer
 from PySide6.QtGui import QAction
 from PySide6.QtWidgets import (
     QApplication,
@@ -27,6 +27,9 @@ from PySide6.QtWidgets import (
 from app.image_viewer import ImageViewer
 from app.results_table import ResultsTable
 from app.settings_panel import SettingsPanel
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_EXPORTS_DIR = PROJECT_ROOT / "exports"
 
 
 class MainWindow(QMainWindow):
@@ -74,7 +77,11 @@ class MainWindow(QMainWindow):
         self.result_viewer.add_point_selected.connect(self.add_leaf_area_at_point)
         self.results_table = ResultsTable()
         self.settings_panel = SettingsPanel()
-        self.settings_panel.settings_changed.connect(self.reanalyze_current_image)
+        self.analysis_debounce_timer = QTimer(self)
+        self.analysis_debounce_timer.setSingleShot(True)
+        self.analysis_debounce_timer.setInterval(140)
+        self.analysis_debounce_timer.timeout.connect(self.reanalyze_current_image)
+        self.settings_panel.settings_changed.connect(self.schedule_reanalysis)
         self.build_menu_bar()
 
         self.show_petri_checkbox = QCheckBox("Petrischale anzeigen")
@@ -346,6 +353,12 @@ class MainWindow(QMainWindow):
         self.manual_leaf_patches = []
         self.reanalyze_current_image()
 
+    def schedule_reanalysis(self, _settings: object | None = None) -> None:
+        if self.current_image_path is None:
+            return
+
+        self.analysis_debounce_timer.start()
+
     def reanalyze_current_image(self) -> None:
         if self.current_image_path is None:
             return
@@ -440,16 +453,28 @@ class MainWindow(QMainWindow):
     def select_csv_export_path(self) -> str:
         dialog = QFileDialog(self, "CSV speichern oder erweitern")
         dialog.setAcceptMode(QFileDialog.AcceptSave)
+        dialog.setFileMode(QFileDialog.AnyFile)
         dialog.setNameFilter("CSV-Dateien (*.csv)")
         dialog.setDefaultSuffix("csv")
         dialog.setOption(QFileDialog.DontConfirmOverwrite, True)
         dialog.setOption(QFileDialog.DontUseNativeDialog, True)
         dialog.setLabelText(QFileDialog.Accept, "Speichern/anhaengen")
+        DEFAULT_EXPORTS_DIR.mkdir(parents=True, exist_ok=True)
+
+        last_export_dir = self._settings.value("export/last_dir", "")
+        export_dir = Path(str(last_export_dir)) if last_export_dir else DEFAULT_EXPORTS_DIR
+        if not export_dir.exists():
+            export_dir = DEFAULT_EXPORTS_DIR
+        dialog.setDirectory(str(export_dir))
+        dialog.selectFile("plantarea_results.csv")
         if not dialog.exec():
             return ""
 
         selected_files = dialog.selectedFiles()
-        return selected_files[0] if selected_files else ""
+        selected_file = selected_files[0] if selected_files else ""
+        if selected_file:
+            self._settings.setValue("export/last_dir", str(Path(selected_file).parent))
+        return selected_file
 
     def suggest_settings_for_current_image(self) -> None:
         if self.current_image_path is None:

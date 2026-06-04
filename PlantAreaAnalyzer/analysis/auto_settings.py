@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import csv
+import json
 from pathlib import Path
 
 import cv2
@@ -18,9 +18,13 @@ from analysis.petri_detection import detect_petri_circle
 from analysis.settings import AnalysisSettings
 from analysis.settings import HSVThresholds
 
-EXAMPLE_SETTINGS_CSV = Path(__file__).resolve().parents[1] / "data" / "examples" / "examples.csv"
-EXAMPLE_SETTINGS_DIR = EXAMPLE_SETTINGS_CSV.parent
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+REFERENCE_SETTINGS_JSON = PROJECT_ROOT / "data" / "reference" / "reference_settings.json"
+REFERENCE_SETTINGS_DIR = REFERENCE_SETTINGS_JSON.parent
 REFERENCE_DISTANCE_LIMIT = 0.42
+MAX_REFERENCE_MASK_DISH_RATIO = 0.45
+MAX_REFERENCE_COMPONENT_DISH_RATIO = 0.32
+MAX_REFERENCE_EDGE_AREA_RATIO = 0.18
 
 
 def suggest_analysis_settings(
@@ -147,50 +151,117 @@ def load_reference_settings_for_similar_image(
     image_path: Path,
     bgr_image: np.ndarray,
 ) -> AnalysisSettings | None:
-    """Use the closest visually similar example CSV row as a curated start."""
+    """Use the closest visually similar curated reference as a start."""
 
-    if not EXAMPLE_SETTINGS_CSV.exists():
+    references = load_reference_settings()
+    if not references:
         return None
 
     current_signature = image_similarity_signature(bgr_image)
-    closest_row: dict[str, str] | None = None
+    closest_reference: dict[str, object] | None = None
     closest_distance = float("inf")
-    with EXAMPLE_SETTINGS_CSV.open(newline="", encoding="utf-8-sig") as csv_file:
-        for row in csv.DictReader(csv_file):
-            reference_path = reference_image_path(row)
-            if reference_path is None:
-                continue
+    for reference in references:
+        reference_path = reference_image_path(reference)
+        if reference_path is None:
+            continue
 
-            reference_image = cv2.imread(str(reference_path))
-            if reference_image is None:
-                continue
+        reference_image = cv2.imread(str(reference_path))
+        if reference_image is None:
+            continue
 
-            distance = signature_distance(
-                current_signature,
-                image_similarity_signature(reference_image),
-            )
-            if distance <= closest_distance:
-                closest_distance = distance
-                closest_row = row
+        distance = signature_distance(
+            current_signature,
+            image_similarity_signature(reference_image),
+        )
+        if distance <= closest_distance:
+            closest_distance = distance
+            closest_reference = reference
 
-    if closest_row is None or closest_distance > REFERENCE_DISTANCE_LIMIT:
+    if closest_reference is None or closest_distance > REFERENCE_DISTANCE_LIMIT:
         return None
 
     try:
-        return settings_from_reference_row(closest_row)
+        reference_settings = settings_from_reference_entry(closest_reference)
     except (KeyError, TypeError, ValueError):
         return None
 
+    if not reference_settings_is_plausible_for_image(bgr_image, reference_settings):
+        return None
 
-def reference_image_path(row: dict[str, str]) -> Path | None:
-    image_path = Path(row.get("image_path", ""))
-    if image_path.exists():
-        return image_path
+    return reference_settings
 
-    original_filename = row.get("original_filename", "")
-    fallback_path = EXAMPLE_SETTINGS_DIR / original_filename
-    if fallback_path.exists():
-        return fallback_path
+
+def reference_settings_is_plausible_for_image(
+    bgr_image: np.ndarray,
+    settings: AnalysisSettings,
+) -> bool:
+    """Reject curated starts that clearly classify medium as leaf area."""
+
+    try:
+        petri_circle = detect_petri_circle(bgr_image)
+    except ValueError:
+        return True
+
+    hsv_image = cv2.cvtColor(bgr_image, cv2.COLOR_BGR2HSV)
+    mask = build_mask_for_scoring(bgr_image, hsv_image, petri_circle, settings)
+    dish_mask = build_petri_mask(
+        mask.shape,
+        petri_circle,
+        shrink_factor=settings.inner_dish_factor,
+    )
+    dish_area = max(1, int(np.count_nonzero(dish_mask)))
+    mask_area = int(np.count_nonzero(mask))
+    if mask_area == 0:
+        return True
+
+    if mask_area / dish_area > MAX_REFERENCE_MASK_DISH_RATIO:
+        return False
+
+    num_labels, labels, stats, _centroids = cv2.connectedComponentsWithStats(mask, 8)
+    if num_labels <= 1:
+        return True
+
+    edge_area = 0
+    largest_component = max(
+        int(stats[label, cv2.CC_STAT_AREA])
+        for label in range(1, num_labels)
+    )
+    for label in range(1, num_labels):
+        component = labels == label
+        if touches_analysis_edge(component, petri_circle):
+            edge_area += int(stats[label, cv2.CC_STAT_AREA])
+
+    if mask_area / dish_area > 0.05 and edge_area / mask_area > MAX_REFERENCE_EDGE_AREA_RATIO:
+        return False
+
+    return largest_component / dish_area <= MAX_REFERENCE_COMPONENT_DISH_RATIO
+
+
+def load_reference_settings() -> list[dict[str, object]]:
+    if not REFERENCE_SETTINGS_JSON.exists():
+        return []
+
+    with REFERENCE_SETTINGS_JSON.open(encoding="utf-8") as reference_file:
+        data = json.load(reference_file)
+
+    references = data.get("references", [])
+    return references if isinstance(references, list) else []
+
+
+def reference_image_path(reference: dict[str, object]) -> Path | None:
+    image_value = reference.get("image", "")
+    if not isinstance(image_value, str):
+        return None
+
+    image_path = Path(image_value)
+    candidates = (
+        image_path,
+        REFERENCE_SETTINGS_DIR / image_path,
+        PROJECT_ROOT / image_path,
+    )
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
 
     return None
 
@@ -240,25 +311,29 @@ def signature_distance(first: np.ndarray, second: np.ndarray) -> float:
     return float(np.linalg.norm((first - second) * weights))
 
 
-def settings_from_reference_row(row: dict[str, str]) -> AnalysisSettings:
+def settings_from_reference_entry(reference: dict[str, object]) -> AnalysisSettings:
+    settings = reference["settings"]
+    if not isinstance(settings, dict):
+        raise TypeError("settings must be an object")
+
     return AnalysisSettings(
         thresholds=HSVThresholds(
-            h_min=int(float(row["h_min"])),
-            h_max=int(float(row["h_max"])),
-            s_min=int(float(row["s_min"])),
-            s_max=int(float(row["s_max"])),
-            v_min=int(float(row["v_min"])),
-            v_max=int(float(row["v_max"])),
+            h_min=int(float(settings["h_min"])),
+            h_max=int(float(settings["h_max"])),
+            s_min=int(float(settings["s_min"])),
+            s_max=int(float(settings["s_max"])),
+            v_min=int(float(settings["v_min"])),
+            v_max=int(float(settings["v_max"])),
         ),
-        min_object_area_px=int(float(row["min_object_area_px"])),
-        max_object_area_px=int(float(row["max_object_area_px"])),
-        green_dominance_margin=int(float(row["green_dominance_margin"])),
-        green_index_min=int(float(row["green_index_min"])),
-        leaf_fill_px=int(float(row["leaf_fill_px"])),
-        pale_leaf_expansion_px=int(float(row["pale_leaf_expansion_px"])),
-        root_trim_px=int(float(row["root_trim_px"])),
-        inner_dish_factor=float(row["inner_dish_percent"]) / 100.0,
-        morphology_kernel_size=int(float(row["morphology_kernel_size"])),
+        min_object_area_px=int(float(settings["min_object_area_px"])),
+        max_object_area_px=int(float(settings["max_object_area_px"])),
+        green_dominance_margin=int(float(settings["green_dominance_margin"])),
+        green_index_min=int(float(settings["green_index_min"])),
+        leaf_fill_px=int(float(settings["leaf_fill_px"])),
+        pale_leaf_expansion_px=int(float(settings["pale_leaf_expansion_px"])),
+        root_trim_px=int(float(settings["root_trim_px"])),
+        inner_dish_factor=float(settings["inner_dish_percent"]) / 100.0,
+        morphology_kernel_size=int(float(settings["morphology_kernel_size"])),
     )
 
 

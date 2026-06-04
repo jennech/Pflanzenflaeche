@@ -248,11 +248,14 @@ Nach der Analyse kannst du auf `CSV speichern` klicken.
 
 Dann:
 
-1. waehle einen Speicherort
-2. die App schreibt eine CSV-Datei
+1. waehle eine Ergebnisdatei, zum Beispiel `exports/plantarea_results.csv`
+2. die App schreibt eine CSV-Datei, wenn sie noch nicht existiert
 3. weitere Messungen werden an dieselbe Datei angehaengt
 
 Die CSV enthaelt nicht nur das Ergebnis, sondern auch die verwendeten Einstellungen. Das ist wichtig, damit spaeter nachvollziehbar bleibt, wie ein Wert entstanden ist.
+
+Wichtig: Die Beispiel- und Referenzdaten der App liegen unter `data/examples/` und `data/reference/`.
+Dort bitte keine eigenen Ergebnis-CSV-Dateien ablegen. Fuer eigene Messreihen besser `exports/` oder einen eigenen Projektordner verwenden.
 
 ## 7. Typische Probleme und Loesungen
 

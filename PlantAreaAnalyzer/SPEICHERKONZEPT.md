@@ -6,6 +6,17 @@ Die Auswertung soll nachvollziehbar, wiederholbar und exportierbar sein. Deshalb
 
 ## Speicherstufen
 
+## Trennung von App-Daten und Nutzerdaten
+
+Professionell sauber ist eine klare Trennung:
+
+- `data/examples/`: Beispielbilder, die mit der App ausgeliefert werden
+- `data/reference/reference_settings.json`: kuratierte Referenzwerte fuer `Werte vorschlagen`
+- `exports/`: eigene CSV-Ergebnisse der Nutzer
+- `projects/`: spaetere Messserien mit Bildern, Ergebnissen und Metadaten
+
+Die Referenzwerte sind JSON, weil sie strukturierte App-Konfiguration sind. Messergebnisse bleiben CSV, weil sie direkt in Excel, Numbers, R oder Python weiterverarbeitet werden koennen.
+
 ### 1. Sofort-Export als CSV
 
 Der erste sinnvolle Schritt ist ein einfacher CSV-Export pro ausgewertetem Bild oder pro Messserie.
