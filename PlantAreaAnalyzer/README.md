@@ -1,48 +1,48 @@
 # PlantAreaAnalyzer
 
-PlantAreaAnalyzer ist ein modular aufgebautes Python-Projekt fuer die Analyse gruener Pflanzenflaechen auf Bildern von Petrischalen.
+PlantAreaAnalyzer ist eine Desktop-App zur Analyse gruener Pflanzenflaechen auf
+Petrischalenbildern.
 
-Der erste MVP enthaelt:
+Die App kann:
 
-- eine Desktop-App mit PySide6
-- Bildimport
-- Gruensegmentierung mit OpenCV im HSV-Farbraum
-- Anzeige von Originalbild und Overlay
-- Berechnung von Gruenflaeche in mm^2
-- Berechnung der Flaechenbedeckung in Prozent
-- eine einfache Platzhalter-Kalibrierung mit festem Petrischalen-Durchmesser von 55 mm
+- Bilder laden und anzeigen
+- die Petrischale automatisch erkennen oder manuell setzen
+- gruene Flaechen segmentieren
+- schwierige Bilder mit Presets, Auto-Vorschlag und gefuehrter Einstellung
+  unterstuetzen
+- manuelle Korrekturen fuer Stoerflaechen und Blattbereiche aufnehmen
+- Ergebnisse als CSV exportieren
 
-Fuer die Installation unter Windows und spaetere Updates findest du die
-Schritt-fuer-Schritt-Anleitung in
-[INSTALLATION_WINDOWS.md](INSTALLATION_WINDOWS.md).
-Die Bedienung der App ist in [ANLEITUNG.md](ANLEITUNG.md) beschrieben.
+## Wenn du die App benutzen willst
 
-## Projektstruktur
+Der einfachste Einstieg ist:
 
-```text
-PlantAreaAnalyzer/
-├── README.md
-├── requirements.txt
-├── main.py
-├── app/
-├── analysis/
-├── data/
-│   ├── examples/
-│   └── reference/
-├── exports/
-└── tests/
-```
+1. [INSTALLATION_WINDOWS.md](INSTALLATION_WINDOWS.md) lesen
+2. Python installieren
+3. optional Git installieren, nur wenn du spaeter mit `git pull` updaten willst
+4. die App starten
 
-`data/reference/reference_settings.json` enthaelt kuratierte App-Referenzen fuer `Werte vorschlagen`.
-Eigene Messergebnisse werden als CSV in `exports/` oder in einem eigenen Projektordner gespeichert und nicht in `data/reference/`.
+Git ist nicht noetig, wenn du nur eine ZIP-Datei herunterladen und die App
+lokal starten willst.
+
 Unter Windows kann die App nach der Einrichtung auch mit
-[`start_windows.bat`](/Users/jenskuehne/Documents/Coding/Coding/Kojla/Pflanzenflaeche/PlantAreaAnalyzer/start_windows.bat)
-gestartet werden.
+[`start_windows.bat`](start_windows.bat) gestartet werden.
 
-## Starten
+## Bedienung
 
-Nach der Installation kann die App mit `python main.py` gestartet werden.
+Die Bedienung der App steht in [ANLEITUNG.md](ANLEITUNG.md).
 
-## Hinweis zum MVP
+## Daten und Exporte
 
-Die Kalibrierung verwendet aktuell noch keinen echten erkannten Kreis. Als Platzhalter wird angenommen, dass die Petrischale ungefaehr die kleinere Bildkante ausfuellt. Damit koennen wir die komplette Pipeline bereits testen und spaeter sauber erweitern.
+- `data/examples/` enthaelt Beispielbilder fuer Entwicklung und Tests
+- `data/reference/reference_settings.json` enthaelt kuratierte Referenzwerte
+  fuer `Werte vorschlagen`
+- `exports/` ist fuer eigene CSV-Ergebnisse gedacht
+
+Eigene Messergebnisse gehoeren nicht in `data/reference/`.
+
+## Technischer Hinweis
+
+Die Kalibrierung verwendet aktuell einen festen Petrischalen-Durchmesser von
+55 mm als Standard. Das reicht fuer den aktuellen Entwicklungsstand, kann aber
+spaeter erweitert werden.

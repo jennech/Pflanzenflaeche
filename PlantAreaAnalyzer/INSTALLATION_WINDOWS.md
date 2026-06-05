@@ -1,14 +1,14 @@
 # PlantAreaAnalyzer unter Windows installieren und updaten
 
-Diese Anleitung ist fuer Menschen gedacht, die die App einfach nutzen wollen und
-nicht selbst in der Entwicklung arbeiten. Sie beschreibt den empfohlenen Weg
-unter Windows 10 und Windows 11.
+Diese Anleitung ist fuer Menschen gedacht, die die App einfach nutzen wollen
+und nicht selbst programmieren. Sie zeigt dir den Weg unter Windows 10 und
+Windows 11 Schritt fuer Schritt.
 
-Kurz gesagt:
+Wichtig gleich am Anfang:
 
-- am einfachsten ist die Installation per Git-Repository
-- Updates laufen dann spaeter mit `git pull`
-- wenn du kein Git benutzen willst, geht auch ein ZIP-Download
+- Git ist nicht notwendig, um die App zu benutzen
+- Git brauchst du nur, wenn du spaeter bequem mit `git pull` updaten willst
+- wenn du Git nicht willst, kannst du einfach ein ZIP herunterladen
 - in beiden Faellen brauchst du Python und eine eigene virtuelle Umgebung
 
 ## Was du brauchst
@@ -20,9 +20,97 @@ Kurz gesagt:
   `tif` oder `tiff`
 - optional, aber empfohlen: Git
 
-## Empfohlener Weg: Installation mit Git
+## Weg 1: Ohne Git, am einfachsten fuer absolute Anfaenger
 
-Dieser Weg ist am einfachsten fuer spaetere Updates.
+Wenn du die App nur benutzen willst, nimm diesen Weg.
+
+### 1. Python installieren
+
+1. Lade Python von [python.org](https://www.python.org/downloads/windows/) herunter.
+2. Nimm die 64-bit Version von Python 3.13.
+3. Aktiviere im Installer unbedingt `Add python.exe to PATH`.
+4. Schliesse die Installation ab.
+
+Pruefen kannst du die Installation mit:
+
+```powershell
+py --version
+```
+
+Falls das nicht geht, probiere:
+
+```powershell
+python --version
+```
+
+### 2. ZIP-Datei herunterladen
+
+1. Oeffne das GitHub-Repo im Browser.
+2. Klicke auf `Code`.
+3. Lade das Projekt als ZIP herunter.
+4. Entpacke die ZIP-Datei in einen Ordner, den du leicht wiederfindest.
+5. Oeffne den entpackten Ordner `PlantAreaAnalyzer`.
+
+### 3. Virtuelle Umgebung anlegen
+
+Im Ordner `PlantAreaAnalyzer`:
+
+```powershell
+py -3.13 -m venv .venv
+```
+
+Falls `py -3.13` nicht gefunden wird:
+
+```powershell
+python -m venv .venv
+```
+
+### 4. Virtuelle Umgebung aktivieren
+
+In PowerShell:
+
+```powershell
+.venv\Scripts\Activate.ps1
+```
+
+In `cmd`:
+
+```bat
+.venv\Scripts\activate.bat
+```
+
+Wenn PowerShell das Aktivieren blockiert, einmalig fuer deinen Benutzer:
+
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+```
+
+Danach PowerShell schliessen und neu oeffnen.
+
+### 5. Abhaengigkeiten installieren
+
+Mit aktivierter virtueller Umgebung:
+
+```powershell
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+```
+
+### 6. App starten
+
+Im gleichen Ordner:
+
+```powershell
+python main.py
+```
+
+Oder per Doppelklick auf `start_windows.bat`, wenn die virtuelle Umgebung schon
+eingerichtet ist.
+
+## Weg 2: Mit Git, wenn du spaeter einfach updaten willst
+
+Dieser Weg ist fuer Nutzer praktisch, die spaeter nicht jedes Mal eine neue ZIP
+herunterladen wollen.
 
 ### 1. Python installieren
 
@@ -193,12 +281,9 @@ Wenn du die App jemandem geben willst, der sich mit Python nicht auskennt,
 ist dieser Weg am einfachsten:
 
 1. Python installieren
-2. Git installieren
-3. Repository klonen
-4. virtuelle Umgebung anlegen
-5. Pakete installieren
-6. `python main.py` starten
-7. spaeter nur `git pull` und danach wieder starten
+2. entweder ZIP herunterladen oder Git installieren
+3. die Schritte aus `Weg 1` befolgen
+4. falls Git benutzt wurde, spaeter mit `git pull` updaten
 
 Damit bleibt die Installation sauber und Updates sind deutlich einfacher als
 bei einer ZIP-Loesung.
