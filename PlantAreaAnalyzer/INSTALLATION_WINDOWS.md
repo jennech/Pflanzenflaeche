@@ -133,8 +133,17 @@ python --version
 
 ### 2. Git installieren
 
-Falls Git noch nicht vorhanden ist, installiere es von
-[git-scm.com](https://git-scm.com/download/win).
+Git ist das Programm, mit dem du spaeter Updates mit `git pull` holen kannst.
+Wenn du es noch nicht installiert hast:
+
+1. Lade Git von [git-scm.com](https://git-scm.com/download/win) herunter.
+2. Starte die Installation.
+3. Die Standard-Einstellungen sind fuer den Anfang in Ordnung.
+4. Wenn die Installation fertig ist, kannst du Git im Terminal testen mit:
+
+```powershell
+git --version
+```
 
 Danach im gewuenschten Ordner das Projekt klonen:
 
