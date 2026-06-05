@@ -12,7 +12,10 @@ Der erste MVP enthaelt:
 - Berechnung der Flaechenbedeckung in Prozent
 - eine einfache Platzhalter-Kalibrierung mit festem Petrischalen-Durchmesser von 55 mm
 
-Eine detaillierte Bedienungs- und Windows-Anleitung findest du in [ANLEITUNG.md](ANLEITUNG.md).
+Fuer die Installation unter Windows und spaetere Updates findest du die
+Schritt-fuer-Schritt-Anleitung in
+[INSTALLATION_WINDOWS.md](INSTALLATION_WINDOWS.md).
+Die Bedienung der App ist in [ANLEITUNG.md](ANLEITUNG.md) beschrieben.
 
 ## Projektstruktur
 
@@ -32,20 +35,13 @@ PlantAreaAnalyzer/
 
 `data/reference/reference_settings.json` enthaelt kuratierte App-Referenzen fuer `Werte vorschlagen`.
 Eigene Messergebnisse werden als CSV in `exports/` oder in einem eigenen Projektordner gespeichert und nicht in `data/reference/`.
-
-## Installation
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-```
+Unter Windows kann die App nach der Einrichtung auch mit
+[`start_windows.bat`](/Users/jenskuehne/Documents/Coding/Coding/Kojla/Pflanzenflaeche/PlantAreaAnalyzer/start_windows.bat)
+gestartet werden.
 
 ## Starten
 
-```bash
-python main.py
-```
+Nach der Installation kann die App mit `python main.py` gestartet werden.
 
 ## Hinweis zum MVP
 

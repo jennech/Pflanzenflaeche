@@ -9,6 +9,7 @@ import pytest
 
 import analysis.auto_settings as auto_settings
 from analysis.auto_settings import build_leaf_candidate_mask
+from analysis.auto_settings import choose_best_settings
 from analysis.auto_settings import reference_settings_is_plausible_for_image
 from analysis.auto_settings import suggest_analysis_settings
 from analysis.settings import AnalysisSettings
@@ -50,6 +51,83 @@ def test_leaf_candidate_mask_ignores_thin_root_like_components() -> None:
 
     assert candidate_mask[28, 28]
     assert not candidate_mask[55, 40]
+
+
+def test_auto_settings_prefers_compact_leaf_mask_over_medium_flood() -> None:
+    image = np.full((260, 260, 3), [45, 55, 40], dtype=np.uint8)
+    cv2.circle(image, (130, 130), 118, [58, 78, 48], -1)
+
+    for center in [(85, 85), (175, 85), (85, 175), (175, 175)]:
+        cv2.circle(image, center, 18, [35, 145, 35], -1)
+        cv2.circle(image, center, 9, [45, 170, 45], -1)
+
+    # Medium-like areas around plants are greenish enough to tempt broad masks,
+    # but they should not win against compact leaf-shaped components.
+    cv2.rectangle(image, (35, 35), (120, 210), [42, 102, 38], -1)
+    cv2.rectangle(image, (155, 45), (230, 215), [42, 102, 38], -1)
+    for center in [(85, 85), (175, 85), (85, 175), (175, 175)]:
+        cv2.circle(image, center, 18, [35, 145, 35], -1)
+        cv2.circle(image, center, 9, [45, 170, 45], -1)
+
+    hsv_image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+    petri_circle = auto_settings.PetriCircle(130, 130, 118)
+    flood_settings = AnalysisSettings(
+        thresholds=HSVThresholds(h_min=25, h_max=130, s_min=35, v_min=20),
+        min_object_area_px=0,
+        max_object_area_px=120000,
+        green_dominance_margin=0,
+        green_index_min=-20,
+        leaf_fill_px=2,
+        pale_leaf_expansion_px=28,
+        root_trim_px=0,
+        inner_dish_factor=0.88,
+    )
+    compact_settings = AnalysisSettings(
+        thresholds=HSVThresholds(h_min=28, h_max=135, s_min=125, v_min=20),
+        min_object_area_px=300,
+        max_object_area_px=70000,
+        green_dominance_margin=42,
+        green_index_min=72,
+        leaf_fill_px=0,
+        pale_leaf_expansion_px=0,
+        root_trim_px=10,
+        inner_dish_factor=0.78,
+    )
+
+    suggested = choose_best_settings(
+        bgr_image=image,
+        hsv_image=hsv_image,
+        petri_circle=petri_circle,
+        base_settings=AnalysisSettings(),
+        candidate_settings=[flood_settings, compact_settings],
+    )
+
+    assert suggested.thresholds.s_min == compact_settings.thresholds.s_min
+    assert suggested.green_dominance_margin == compact_settings.green_dominance_margin
+
+
+def test_small_pale_core_mode_is_skipped_for_larger_leaf_areas() -> None:
+    image = np.full((260, 260, 3), [45, 55, 40], dtype=np.uint8)
+    cv2.circle(image, (130, 130), 118, [58, 78, 48], -1)
+    for center in [(85, 85), (175, 85), (85, 175), (175, 175)]:
+        cv2.circle(image, center, 24, [35, 145, 35], -1)
+        cv2.circle(image, center, 12, [45, 170, 45], -1)
+
+    hsv_image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+    petri_circle = auto_settings.PetriCircle(130, 130, 118)
+    dish_mask = auto_settings.build_petri_mask(
+        hsv_image.shape[:2],
+        petri_circle,
+        shrink_factor=0.88,
+    )
+    candidate_mask = build_leaf_candidate_mask(image, hsv_image, dish_mask)
+
+    assert not auto_settings.should_try_small_pale_core_settings(
+        image,
+        hsv_image,
+        petri_circle,
+        candidate_mask,
+    )
 
 
 def test_auto_settings_uses_latest_similar_reference_json_entry(

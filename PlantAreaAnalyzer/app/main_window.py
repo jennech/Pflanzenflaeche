@@ -43,8 +43,10 @@ class MainWindow(QMainWindow):
         self.resize(1200, 720)
         self._settings = QSettings("Kojla", "PlantAreaAnalyzer")
         self.current_image_path: Optional[Path] = None
+        self.current_bgr_image = None
         self.current_analysis_result = None
         self.current_petri_circle: Optional[tuple[int, int, int]] = None
+        self.detected_petri_circle = None
         self.manual_petri_circle: Optional[tuple[int, int, int]] = None
         self.excluded_component_points: list[tuple[int, int]] = []
         self.manual_leaf_points: list[tuple[int, int]] = []
@@ -341,12 +343,30 @@ class MainWindow(QMainWindow):
         if not file_path:
             return
 
+        try:
+            import cv2
+
+            bgr_image = cv2.imread(file_path)
+        except Exception as error:  # noqa: BLE001
+            QMessageBox.critical(self, "Bildfehler", str(error))
+            return
+
+        if bgr_image is None:
+            QMessageBox.critical(
+                self,
+                "Bildfehler",
+                f"Bild konnte nicht geladen werden:\n{file_path}",
+            )
+            return
+
         self.current_image_path = Path(file_path)
+        self.current_bgr_image = bgr_image
         self.update_filename_display()
         self.current_analysis_result = None
         self.csv_export_button.setEnabled(False)
         self.auto_settings_button.setEnabled(True)
         self.current_petri_circle = None
+        self.detected_petri_circle = None
         self.manual_petri_circle = None
         self.excluded_component_points = []
         self.manual_leaf_points = []
@@ -375,6 +395,8 @@ class MainWindow(QMainWindow):
                     manual_leaf_radius_px=self.manual_leaf_radius_px,
                     manual_leaf_patches=tuple(self.manual_leaf_patches),
                 ),
+                bgr_image=self.current_bgr_image,
+                detected_petri_circle=self.detected_petri_circle,
             )
         except Exception as error:  # noqa: BLE001
             QMessageBox.critical(self, "Analysefehler", str(error))
@@ -389,6 +411,8 @@ class MainWindow(QMainWindow):
             result.petri_circle.center_y,
             result.petri_circle.radius,
         )
+        if self.manual_petri_circle is None:
+            self.detected_petri_circle = result.petri_circle
         self.update_petri_overlay()
         self.update_exclusion_markers()
         self.update_addition_markers()

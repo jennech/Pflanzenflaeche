@@ -91,23 +91,33 @@ def suggest_analysis_settings(
         manual_petri_circle=manual_petri_circle,
         excluded_component_points=base_settings.excluded_component_points,
     )
+    candidate_settings = [
+        base_settings,
+        stricter_root_variant(base_settings, manual_petri_circle),
+        data_driven_settings,
+        dark_leaf_high_saturation_settings(base_settings, manual_petri_circle),
+        balanced_root_safe_settings(base_settings, manual_petri_circle),
+        medium_aware_leaf_settings(base_settings, manual_petri_circle),
+        root_strict_settings(base_settings, manual_petri_circle),
+        broad_strict_leaf_settings(base_settings, manual_petri_circle),
+        contrast_strict_leaf_settings(base_settings, manual_petri_circle),
+        pale_leaf_settings(base_settings, manual_petri_circle),
+        pale_leaf_base_root_settings(base_settings, manual_petri_circle),
+    ]
+    if should_try_small_pale_core_settings(
+        bgr_image,
+        hsv_image,
+        petri_circle,
+        candidate_mask,
+    ):
+        candidate_settings.append(small_pale_core_settings(base_settings, manual_petri_circle))
+
     return choose_best_settings(
         bgr_image=bgr_image,
         hsv_image=hsv_image,
         petri_circle=petri_circle,
         base_settings=base_settings,
-        candidate_settings=[
-            base_settings,
-            stricter_root_variant(base_settings, manual_petri_circle),
-            data_driven_settings,
-            dark_leaf_high_saturation_settings(base_settings, manual_petri_circle),
-            root_strict_settings(base_settings, manual_petri_circle),
-            broad_strict_leaf_settings(base_settings, manual_petri_circle),
-            contrast_strict_leaf_settings(base_settings, manual_petri_circle),
-            small_pale_core_settings(base_settings, manual_petri_circle),
-            pale_leaf_settings(base_settings, manual_petri_circle),
-            pale_leaf_base_root_settings(base_settings, manual_petri_circle),
-        ],
+        candidate_settings=candidate_settings,
     )
 
 
@@ -118,10 +128,21 @@ def choose_best_settings(
     base_settings: AnalysisSettings,
     candidate_settings: list[AnalysisSettings],
 ) -> AnalysisSettings:
+    leaf_core_mask = build_high_confidence_leaf_core_mask(
+        bgr_image,
+        hsv_image,
+        petri_circle,
+    )
     scored_settings: list[tuple[float, int, AnalysisSettings]] = []
     for settings in candidate_settings:
         mask = build_mask_for_scoring(bgr_image, hsv_image, petri_circle, settings)
-        scored_settings.append((score_mask(mask, petri_circle), int(np.count_nonzero(mask)), settings))
+        scored_settings.append(
+            (
+                score_mask(mask, petri_circle, leaf_core_mask),
+                int(np.count_nonzero(mask)),
+                settings,
+            )
+        )
 
     if not scored_settings:
         return conservative_dark_leaf_settings(base_settings)
@@ -383,7 +404,11 @@ def build_mask_for_scoring(
     return suppress_thin_protrusions(cleaned_mask, settings.root_trim_px)
 
 
-def score_mask(mask: np.ndarray, petri_circle: PetriCircle) -> float:
+def score_mask(
+    mask: np.ndarray,
+    petri_circle: PetriCircle,
+    leaf_core_mask: np.ndarray | None = None,
+) -> float:
     num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(mask, 8)
     if num_labels <= 1:
         return -1_000_000.0
@@ -392,6 +417,10 @@ def score_mask(mask: np.ndarray, petri_circle: PetriCircle) -> float:
     total_area = 0
     thin_penalty = 0.0
     edge_penalty = 0.0
+    weak_component_penalty = 0.0
+    satellite_penalty = 0.0
+    core_overlap_area = 0
+    component_areas: list[int] = []
     for label in range(1, num_labels):
         area = int(stats[label, cv2.CC_STAT_AREA])
         width = int(stats[label, cv2.CC_STAT_WIDTH])
@@ -399,7 +428,9 @@ def score_mask(mask: np.ndarray, petri_circle: PetriCircle) -> float:
         if area <= 0:
             continue
 
+        component = labels == label
         total_area += area
+        component_areas.append(area)
         short_side = max(1, min(width, height))
         long_side = max(width, height)
         aspect_ratio = long_side / short_side
@@ -407,12 +438,27 @@ def score_mask(mask: np.ndarray, petri_circle: PetriCircle) -> float:
         component_score = min(area, 20_000) * min(1.0, fill_ratio + 0.25)
         if aspect_ratio > 3.5:
             thin_penalty += area * (aspect_ratio - 3.5)
-        if touches_analysis_edge(labels == label, petri_circle):
+        if touches_analysis_edge(component, petri_circle):
             edge_penalty += area * 1.5
+        if leaf_core_mask is not None:
+            component_core_area = int(np.count_nonzero(component & leaf_core_mask))
+            core_overlap_area += component_core_area
+            core_overlap_ratio = component_core_area / max(1, area)
+            if component_core_area == 0:
+                weak_component_penalty += area * 1.4
+            elif core_overlap_ratio < 0.08:
+                weak_component_penalty += area * (0.08 - core_overlap_ratio) * 6.0
         component_scores.append(component_score)
 
     if total_area == 0:
         return -1_000_000.0
+
+    if component_areas:
+        largest_area = max(component_areas)
+        satellite_area = sum(area for area in component_areas if area < largest_area * 0.22)
+        satellite_penalty += satellite_area * 0.65
+        if len(component_areas) > 8:
+            satellite_penalty += (len(component_areas) - 8) * 2200.0
 
     dish_area = np.pi * petri_circle.radius * petri_circle.radius
     coverage = total_area / max(1.0, dish_area)
@@ -422,9 +468,72 @@ def score_mask(mask: np.ndarray, petri_circle: PetriCircle) -> float:
     if coverage > 0.23:
         plausible_area_score -= (coverage - 0.23) * dish_area * 5.0
 
+    core_precision_score = 0.0
+    if leaf_core_mask is not None:
+        core_area = int(np.count_nonzero(leaf_core_mask))
+        if core_area > 0:
+            core_recall = core_overlap_area / core_area
+            outside_core_ratio = max(0.0, (total_area - core_overlap_area) / total_area)
+            core_precision_score += core_recall * 12_000.0
+            if outside_core_ratio > 0.86:
+                core_precision_score -= (outside_core_ratio - 0.86) * total_area * 3.0
+
     large_components = sum(1 for score in component_scores if score > 300)
     plant_count_score = 5000.0 - abs(large_components - 4) * 1200.0
-    return plausible_area_score + plant_count_score - thin_penalty - edge_penalty
+    return (
+        plausible_area_score
+        + plant_count_score
+        + core_precision_score
+        - thin_penalty
+        - edge_penalty
+        - weak_component_penalty
+        - satellite_penalty
+    )
+
+
+def build_high_confidence_leaf_core_mask(
+    bgr_image: np.ndarray,
+    hsv_image: np.ndarray,
+    petri_circle: PetriCircle,
+) -> np.ndarray:
+    """Find conservative leaf cores used only to judge auto-setting candidates."""
+
+    dish_mask = build_petri_mask(hsv_image.shape[:2], petri_circle, shrink_factor=0.84)
+    blue, green, red = cv2.split(bgr_image.astype(np.int16))
+    hue = hsv_image[:, :, 0]
+    saturation = hsv_image[:, :, 1]
+    value = hsv_image[:, :, 2]
+    excess_green = (2 * green) - red - blue
+    green_margin = np.minimum(green - red, green - blue)
+
+    core = (
+        (dish_mask > 0)
+        & (hue >= 25)
+        & (hue <= 130)
+        & (saturation >= 95)
+        & (value >= 18)
+        & (green_margin >= 4)
+        & (excess_green >= 10)
+    )
+    core_mask = core.astype(np.uint8) * 255
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+    core_mask = cv2.morphologyEx(core_mask, cv2.MORPH_OPEN, kernel)
+    return keep_plausible_candidate_components(core_mask)
+
+
+def should_try_small_pale_core_settings(
+    bgr_image: np.ndarray,
+    hsv_image: np.ndarray,
+    petri_circle: PetriCircle,
+    candidate_mask: np.ndarray,
+) -> bool:
+    """Only use the extreme tiny-plant mode when the whole image really looks tiny."""
+
+    dish_area = max(1.0, np.pi * petri_circle.radius * petri_circle.radius)
+    candidate_ratio = np.count_nonzero(candidate_mask) / dish_area
+    core_mask = build_high_confidence_leaf_core_mask(bgr_image, hsv_image, petri_circle)
+    core_ratio = np.count_nonzero(core_mask) / dish_area
+    return core_ratio < 0.025 and candidate_ratio < 0.22
 
 
 def touches_analysis_edge(component: np.ndarray, petri_circle: PetriCircle) -> bool:
@@ -550,6 +659,48 @@ def dark_leaf_high_saturation_settings(
         pale_leaf_expansion_px=30,
         root_trim_px=max(base_settings.root_trim_px, 10),
         inner_dish_factor=min(base_settings.inner_dish_factor, 0.86),
+        morphology_kernel_size=base_settings.morphology_kernel_size,
+        manual_petri_circle=manual_petri_circle,
+        excluded_component_points=base_settings.excluded_component_points,
+    )
+
+
+def balanced_root_safe_settings(
+    base_settings: AnalysisSettings,
+    manual_petri_circle: tuple[int, int, int] | None,
+) -> AnalysisSettings:
+    """Balanced candidate: tolerant enough for leaves, strict enough against medium/root flood."""
+    return AnalysisSettings(
+        thresholds=HSVThresholds(h_min=28, h_max=135, s_min=125, s_max=255, v_min=20),
+        min_object_area_px=300,
+        max_object_area_px=70000,
+        green_dominance_margin=42,
+        green_index_min=72,
+        leaf_fill_px=0,
+        pale_leaf_expansion_px=0,
+        root_trim_px=max(base_settings.root_trim_px, 10),
+        inner_dish_factor=min(base_settings.inner_dish_factor, 0.78),
+        morphology_kernel_size=base_settings.morphology_kernel_size,
+        manual_petri_circle=manual_petri_circle,
+        excluded_component_points=base_settings.excluded_component_points,
+    )
+
+
+def medium_aware_leaf_settings(
+    base_settings: AnalysisSettings,
+    manual_petri_circle: tuple[int, int, int] | None,
+) -> AnalysisSettings:
+    """Avoid muddy medium by demanding a clearer leaf-green hue and green surplus."""
+    return AnalysisSettings(
+        thresholds=HSVThresholds(h_min=50, h_max=135, s_min=130, s_max=255, v_min=0),
+        min_object_area_px=300,
+        max_object_area_px=120000,
+        green_dominance_margin=42,
+        green_index_min=78,
+        leaf_fill_px=0,
+        pale_leaf_expansion_px=0,
+        root_trim_px=max(base_settings.root_trim_px, 10),
+        inner_dish_factor=min(base_settings.inner_dish_factor, 0.78),
         morphology_kernel_size=base_settings.morphology_kernel_size,
         manual_petri_circle=manual_petri_circle,
         excluded_component_points=base_settings.excluded_component_points,

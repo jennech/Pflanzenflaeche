@@ -1,6 +1,8 @@
 # PlantAreaAnalyzer Bedienungsanleitung
 
-Diese Anleitung ist fuer komplette Neueinsteiger gedacht und erklaert die Installation, Bedienung und den Umgang mit Windows.
+Diese Anleitung erklaert die Bedienung der App nach der Installation.
+Die Windows-Installation und spaetere Updates sind in
+[INSTALLATION_WINDOWS.md](INSTALLATION_WINDOWS.md) beschrieben.
 
 ## 1. Was die App macht
 
@@ -32,6 +34,9 @@ Empfehlung:
 - benutze pro Projekt eine eigene CSV-Datei
 
 ## 3. Installation unter Windows
+
+Hinweis: Die kompakte Schritt-fuer-Schritt-Installation und die Update-Anleitung
+stehen jetzt in [INSTALLATION_WINDOWS.md](INSTALLATION_WINDOWS.md).
 
 ### 3.1 Python installieren
 

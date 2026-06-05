@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from dataclasses import replace
 from pathlib import Path
 from typing import Optional
 
@@ -24,93 +25,280 @@ class AnalysisResult:
     petri_circle: PetriCircle
 
 
+DEFAULT_MAX_ANALYSIS_DIMENSION = 1800
+
+
 def analyze_green_area(
     image_path: Path,
     thresholds: Optional[HSVThresholds] = None,
     settings: Optional[AnalysisSettings] = None,
+    bgr_image: Optional[np.ndarray] = None,
+    detected_petri_circle: Optional[PetriCircle] = None,
+    max_analysis_dimension: int = DEFAULT_MAX_ANALYSIS_DIMENSION,
 ) -> AnalysisResult:
     settings = settings or AnalysisSettings(thresholds=thresholds or HSVThresholds())
-    bgr_image = cv2.imread(str(image_path))
+    bgr_image = bgr_image if bgr_image is not None else cv2.imread(str(image_path))
     if bgr_image is None:
         raise ValueError(f"Bild konnte nicht geladen werden: {image_path}")
 
-    petri_circle = (
-        PetriCircle(*settings.manual_petri_circle)
-        if settings.manual_petri_circle is not None
-        else detect_petri_circle(bgr_image)
+    original_height, original_width = bgr_image.shape[:2]
+    work_image, scale_factor = resize_for_analysis(
+        bgr_image,
+        max_analysis_dimension=max_analysis_dimension,
     )
-    hsv_image = cv2.cvtColor(bgr_image, cv2.COLOR_BGR2HSV)
+    work_settings = scale_analysis_settings(settings, scale_factor)
+    work_petri_circle = scale_petri_circle(detected_petri_circle, scale_factor)
+
+    petri_circle = (
+        PetriCircle(*work_settings.manual_petri_circle)
+        if work_settings.manual_petri_circle is not None
+        else work_petri_circle or detect_petri_circle(work_image)
+    )
+    hsv_image = cv2.cvtColor(work_image, cv2.COLOR_BGR2HSV)
     hsv_mask = cv2.inRange(
         hsv_image,
-        settings.thresholds.lower_bound(),
-        settings.thresholds.upper_bound(),
+        work_settings.thresholds.lower_bound(),
+        work_settings.thresholds.upper_bound(),
     )
 
     dominance_mask = build_green_dominance_mask(
-        bgr_image,
-        settings.green_dominance_margin,
+        work_image,
+        work_settings.green_dominance_margin,
     )
     strict_mask = cv2.bitwise_and(hsv_mask, dominance_mask)
     index_mask = build_green_index_mask(
-        bgr_image,
+        work_image,
         hsv_image,
-        settings,
+        work_settings,
     )
     mask = cv2.bitwise_or(strict_mask, index_mask)
 
     dish_mask = build_petri_mask(
         mask.shape,
         petri_circle,
-        shrink_factor=settings.inner_dish_factor,
+        shrink_factor=work_settings.inner_dish_factor,
     )
     mask = cv2.bitwise_and(mask, dish_mask)
     pale_leaf_mask = build_pale_leaf_expansion_mask(
-        bgr_image,
+        work_image,
         hsv_image,
         mask,
-        settings.pale_leaf_expansion_px,
-        settings,
+        work_settings.pale_leaf_expansion_px,
+        work_settings,
     )
     mask = cv2.bitwise_or(mask, cv2.bitwise_and(pale_leaf_mask, dish_mask))
-    mask = fill_leaf_gaps(mask, settings.leaf_fill_px)
+    mask = fill_leaf_gaps(mask, work_settings.leaf_fill_px)
 
-    kernel_size = max(1, settings.morphology_kernel_size)
+    kernel_size = max(1, work_settings.morphology_kernel_size)
     kernel = np.ones((kernel_size, kernel_size), dtype=np.uint8)
     cleaned_mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
     cleaned_mask = cv2.morphologyEx(cleaned_mask, cv2.MORPH_CLOSE, kernel)
     cleaned_mask = filter_components_by_area(
         cleaned_mask,
-        min_area_px=settings.min_object_area_px,
-        max_area_px=settings.max_object_area_px,
+        min_area_px=work_settings.min_object_area_px,
+        max_area_px=work_settings.max_object_area_px,
     )
-    cleaned_mask = suppress_thin_protrusions(cleaned_mask, settings.root_trim_px)
+    cleaned_mask = suppress_thin_protrusions(cleaned_mask, work_settings.root_trim_px)
     cleaned_mask = remove_components_at_points(
         cleaned_mask,
-        settings.excluded_component_points,
+        work_settings.excluded_component_points,
     )
     cleaned_mask = add_leaf_area_at_points(
         cleaned_mask,
-        settings.manual_leaf_points,
-        settings.manual_leaf_radius_px,
-        settings.manual_leaf_patches,
+        work_settings.manual_leaf_points,
+        work_settings.manual_leaf_radius_px,
+        work_settings.manual_leaf_patches,
     )
     cleaned_mask = cv2.bitwise_and(cleaned_mask, dish_mask)
+    full_mask = resize_mask_to_original(
+        cleaned_mask,
+        width=original_width,
+        height=original_height,
+    )
+    full_petri_circle = unscale_petri_circle(petri_circle, scale_factor)
 
     calibration = calibrate_from_petri_diameter_px(
-        pixel_diameter=float(petri_circle.radius * 2),
+        pixel_diameter=float(full_petri_circle.radius * 2),
     )
-    measurement = measure_green_area(cleaned_mask, calibration)
+    measurement = measure_green_area(full_mask, calibration)
 
     original_rgb = cv2.cvtColor(bgr_image, cv2.COLOR_BGR2RGB)
-    overlay_rgb = build_green_overlay(original_rgb, cleaned_mask)
-    mask_rgb = cv2.cvtColor(cleaned_mask, cv2.COLOR_GRAY2RGB)
+    overlay_rgb = build_green_overlay(original_rgb, full_mask)
+    mask_rgb = cv2.cvtColor(full_mask, cv2.COLOR_GRAY2RGB)
 
     return AnalysisResult(
         original_qimage=numpy_to_qimage(original_rgb),
         overlay_qimage=numpy_to_qimage(overlay_rgb),
         mask_qimage=numpy_to_qimage(mask_rgb),
         measurement=measurement,
-        petri_circle=petri_circle,
+        petri_circle=full_petri_circle,
+    )
+
+
+def resize_for_analysis(
+    bgr_image: np.ndarray,
+    max_analysis_dimension: int,
+) -> tuple[np.ndarray, float]:
+    if max_analysis_dimension <= 0:
+        return bgr_image, 1.0
+
+    height, width = bgr_image.shape[:2]
+    max_dimension = max(height, width)
+    if max_dimension <= max_analysis_dimension:
+        return bgr_image, 1.0
+
+    scale_factor = max_analysis_dimension / float(max_dimension)
+    target_size = (
+        max(1, int(round(width * scale_factor))),
+        max(1, int(round(height * scale_factor))),
+    )
+    resized = cv2.resize(
+        bgr_image,
+        target_size,
+        interpolation=cv2.INTER_AREA,
+    )
+    return resized, scale_factor
+
+
+def resize_mask_to_original(mask: np.ndarray, width: int, height: int) -> np.ndarray:
+    if mask.shape[:2] == (height, width):
+        return mask
+
+    return cv2.resize(mask, (width, height), interpolation=cv2.INTER_NEAREST)
+
+
+def scale_analysis_settings(
+    settings: AnalysisSettings,
+    scale_factor: float,
+) -> AnalysisSettings:
+    if scale_factor == 1.0:
+        return settings
+
+    area_scale = scale_factor * scale_factor
+    return replace(
+        settings,
+        min_object_area_px=scale_area_px(settings.min_object_area_px, area_scale),
+        max_object_area_px=scale_area_px(settings.max_object_area_px, area_scale),
+        leaf_fill_px=scale_length_px(
+            settings.leaf_fill_px,
+            scale_factor,
+            allow_zero=True,
+        ),
+        pale_leaf_expansion_px=scale_length_px(
+            settings.pale_leaf_expansion_px,
+            scale_factor,
+            allow_zero=True,
+        ),
+        root_trim_px=scale_length_px(
+            settings.root_trim_px,
+            scale_factor,
+            allow_zero=True,
+        ),
+        morphology_kernel_size=scale_odd_kernel(
+            settings.morphology_kernel_size,
+            scale_factor,
+        ),
+        manual_petri_circle=scale_circle_tuple(settings.manual_petri_circle, scale_factor),
+        excluded_component_points=scale_points(
+            settings.excluded_component_points,
+            scale_factor,
+        ),
+        manual_leaf_points=scale_points(settings.manual_leaf_points, scale_factor),
+        manual_leaf_radius_px=scale_length_px(settings.manual_leaf_radius_px, scale_factor),
+        manual_leaf_patches=scale_patches(settings.manual_leaf_patches, scale_factor),
+    )
+
+
+def scale_area_px(area_px: int, area_scale: float) -> int:
+    if area_px <= 0:
+        return 0
+
+    return max(1, int(round(area_px * area_scale)))
+
+
+def scale_length_px(
+    length_px: int,
+    scale_factor: float,
+    allow_zero: bool = False,
+) -> int:
+    if allow_zero and length_px <= 0:
+        return 0
+
+    return max(1, int(round(length_px * scale_factor)))
+
+
+def scale_odd_kernel(kernel_size: int, scale_factor: float) -> int:
+    scaled = scale_length_px(kernel_size, scale_factor)
+    if scaled % 2 == 0:
+        scaled += 1
+    return max(1, scaled)
+
+
+def scale_points(
+    points: tuple[tuple[int, int], ...],
+    scale_factor: float,
+) -> tuple[tuple[int, int], ...]:
+    return tuple(
+        (
+            int(round(point_x * scale_factor)),
+            int(round(point_y * scale_factor)),
+        )
+        for point_x, point_y in points
+    )
+
+
+def scale_patches(
+    patches: tuple[tuple[int, int, int], ...],
+    scale_factor: float,
+) -> tuple[tuple[int, int, int], ...]:
+    return tuple(
+        (
+            int(round(point_x * scale_factor)),
+            int(round(point_y * scale_factor)),
+            scale_length_px(radius_px, scale_factor),
+        )
+        for point_x, point_y, radius_px in patches
+    )
+
+
+def scale_circle_tuple(
+    circle: tuple[int, int, int] | None,
+    scale_factor: float,
+) -> tuple[int, int, int] | None:
+    if circle is None:
+        return None
+
+    center_x, center_y, radius = circle
+    return (
+        int(round(center_x * scale_factor)),
+        int(round(center_y * scale_factor)),
+        scale_length_px(radius, scale_factor),
+    )
+
+
+def scale_petri_circle(
+    circle: PetriCircle | None,
+    scale_factor: float,
+) -> PetriCircle | None:
+    scaled_circle = scale_circle_tuple(
+        None if circle is None else (circle.center_x, circle.center_y, circle.radius),
+        scale_factor,
+    )
+    return None if scaled_circle is None else PetriCircle(*scaled_circle)
+
+
+def unscale_petri_circle(
+    circle: PetriCircle,
+    scale_factor: float,
+) -> PetriCircle:
+    if scale_factor == 1.0:
+        return circle
+
+    inverse = 1.0 / scale_factor
+    return PetriCircle(
+        center_x=int(round(circle.center_x * inverse)),
+        center_y=int(round(circle.center_y * inverse)),
+        radius=scale_length_px(circle.radius, inverse),
     )
 
 
