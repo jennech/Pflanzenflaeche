@@ -1,0 +1,24 @@
+Titel: Gute Blattkontraste mit vielen Wurzelanhaengen
+
+Datei: gross_guter_kontrast_viel_wurzel.jpg
+Kategorie: Wurzel- und Saumproblem bei sonst gut sichtbaren Blaettern
+
+Bildbeschreibung:
+Vier Pflanzen sind gut sichtbar, mit relativ klaren Blattflaechen und dunklem Medium. Um die Pflanzen herum
+liegen viele helle Wurzelanhaenge, Saeume und blaeuliche Farbbereiche. Die Blattflaechen selbst sind
+ueberwiegend dunkelgruen bis graugruen.
+
+Analyseziel:
+Die Blattflaechen sollen komplett erkannt werden. Wurzelanhaenge, helle Saeume, blaue Farbraender und
+Medium sollen konsequent ausgeschlossen werden.
+
+Warum dieses Bild wichtig ist:
+Dieses Bild prueft, ob die App bei gut sichtbaren Pflanzen nicht durch Wurzeln und Saeume zu viel Flaeche
+zaehlt. Es ist ein Kernbild fuer Wurzel-Trim und strengere Saeumeinstellungen.
+
+Vermutlich relevante Regler:
+- S min: oft der wichtigste Regler gegen helle/graue Wurzeln.
+- Wurzel-Trim: erhoehen, wenn duenne Anhaenge stehen bleiben.
+- Gruen-Abstand und Gruen-Index: strenger machen, wenn Saeume gruendlich mitkommen.
+- Blass-Erweit.: niedrig halten, wenn dadurch Wurzeln/Saeume wachsen.
+

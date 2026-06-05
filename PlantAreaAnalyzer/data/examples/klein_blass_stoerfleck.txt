@@ -1,0 +1,24 @@
+Titel: Kleine blasse Pflanzen mit zentralem Stoerfleck
+
+Datei: klein_blass_stoerfleck.jpg
+Kategorie: schwieriger Fall fuer blasse Blattanteile und Stoerobjekte
+
+Bildbeschreibung:
+Vier sehr kleine Pflanzen sind sichtbar, teilweise blass, gelblich oder graugruen. Im oberen Bereich der
+Petrischale liegt ein heller runder Stoerfleck bzw. Referenz-/Mediumbereich. Um die Pflanzen gibt es helle
+Saeume und wenig stark gesaettigtes Gruen.
+
+Analyseziel:
+Die kleinen Blattflaechen sollen erkannt werden, auch wenn sie blass sind. Der helle runde Stoerfleck, helle
+Saeume, Wurzeln und Medium sollen nicht als Pflanzenflaeche gezaehlt werden.
+
+Warum dieses Bild wichtig ist:
+Dieses Bild prueft, ob blasse Blattteile erkannt werden koennen, ohne dass helle Stoerobjekte oder Medium
+faelschlich mitgenommen werden.
+
+Vermutlich relevante Regler:
+- Blass-Erweit.: vorsichtig erhoehen, um blasse Blattteile zu ergaenzen.
+- S min: eher moderat, sonst verschwinden blasse Blaetter.
+- Stoerflaeche per Klick entfernen: hilfreich fuer den hellen runden Stoerfleck.
+- Wurzel-Trim: moderat, damit Wurzelanhaenge nicht zaehlen.
+

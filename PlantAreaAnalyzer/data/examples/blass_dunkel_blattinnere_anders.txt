@@ -1,0 +1,24 @@
+Titel: Blasse dunkle Blaetter mit andersfarbigem Blattinneren
+
+Datei: blass_dunkel_blattinnere_anders.jpg
+Kategorie: schwieriger Fall fuer ungleichmaessige Blattfarbe
+
+Bildbeschreibung:
+Vier Pflanzen mit dunklen bis blassen Blattflaechen. Einige Blattinnenbereiche wirken graugruen, matt oder
+andersfarbig als die kraeftiger gruenen Blattspitzen. Das Medium ist dunkel und enthaelt deutliche blaue
+Farbsaeume sowie vereinzelte Wurzelstrukturen.
+
+Analyseziel:
+Die sichtbare Blattflaeche soll moeglichst komplett erkannt werden, auch wenn Blattinnenbereiche weniger
+gesaettigt oder graugruen sind. Blaue Saeume, Wurzeln, Reflexe und Medium sollen ausgeschlossen werden.
+
+Warum dieses Bild wichtig ist:
+Dieses Bild prueft, ob die Segmentierung Blattinnenbereiche nicht als Loch verliert. Es ist ein guter Test
+fuer die Balance zwischen Blatt-Fuellung, blasser Erweiterung und Wurzelunterdrueckung.
+
+Vermutlich relevante Regler:
+- Blatt-Fuell.: leicht erhoehen, wenn Blattinnenbereiche geloechert wirken.
+- Blass-Erweit.: vorsichtig erhoehen, wenn graugruene Blattbasis fehlt.
+- S min: erhoehen, wenn helle Wurzelanhaenge mitkommen.
+- Wurzel-Trim: erhoehen, wenn duenne Anhaenge zaehlen.
+

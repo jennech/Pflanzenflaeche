@@ -1,0 +1,9 @@
+.DS_Store
+__pycache__/
+.pytest_cache/
+.venv/
+.venv313/
+
+# Nutzer-Ergebnisse: CSV-Exports gehoeren nicht in die App-Referenzdaten.
+exports/*.csv
+projects/

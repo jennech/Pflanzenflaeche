@@ -1,0 +1,121 @@
+{
+  "schema_version": 1,
+  "purpose": "Kuratierte Referenzwerte fuer 'Werte vorschlagen'. Nutzer-Exports gehoeren nicht in diese Datei.",
+  "references": [
+    {
+      "id": "blass_dunkel_blattinnere_anders",
+      "title": "Blasse/dunkle Blaetter mit andersfarbigem Blattinneren",
+      "image": "../examples/blass_dunkel_blattinnere_anders.jpg",
+      "expected_green_pixels": 40194,
+      "settings": {
+        "h_min": 25,
+        "h_max": 120,
+        "s_min": 85,
+        "s_max": 255,
+        "v_min": 25,
+        "v_max": 255,
+        "min_object_area_px": 240,
+        "max_object_area_px": 65000,
+        "green_dominance_margin": 80,
+        "green_index_min": 80,
+        "leaf_fill_px": 0,
+        "pale_leaf_expansion_px": 0,
+        "root_trim_px": 10,
+        "inner_dish_percent": 78,
+        "morphology_kernel_size": 3
+      }
+    },
+    {
+      "id": "groesser_ineinanderuebergehend_dunkle_blaetter",
+      "title": "Groessere dunkle Blaetter mit uebergehenden Blattbereichen",
+      "image": "../examples/groesser_ineinanderuebergehend_dunkle_blaetter.jpg",
+      "expected_green_pixels": 49981,
+      "settings": {
+        "h_min": 25,
+        "h_max": 120,
+        "s_min": 85,
+        "s_max": 255,
+        "v_min": 25,
+        "v_max": 255,
+        "min_object_area_px": 240,
+        "max_object_area_px": 65000,
+        "green_dominance_margin": 80,
+        "green_index_min": 80,
+        "leaf_fill_px": 0,
+        "pale_leaf_expansion_px": 22,
+        "root_trim_px": 10,
+        "inner_dish_percent": 78,
+        "morphology_kernel_size": 3
+      }
+    },
+    {
+      "id": "gross_guter_kontrast_viel_wurzel",
+      "title": "Gute Blattkontraste, aber viele Wurzelanhaenge",
+      "image": "../examples/gross_guter_kontrast_viel_wurzel.jpg",
+      "expected_green_pixels": 28742,
+      "settings": {
+        "h_min": 30,
+        "h_max": 120,
+        "s_min": 128,
+        "s_max": 255,
+        "v_min": 20,
+        "v_max": 255,
+        "min_object_area_px": 0,
+        "max_object_area_px": 75000,
+        "green_dominance_margin": 80,
+        "green_index_min": 80,
+        "leaf_fill_px": 0,
+        "pale_leaf_expansion_px": 13,
+        "root_trim_px": 10,
+        "inner_dish_percent": 78,
+        "morphology_kernel_size": 3
+      }
+    },
+    {
+      "id": "klein_blass_stoerfleck",
+      "title": "Kleine blasse Pflanzen mit Stoerfleck",
+      "image": "../examples/klein_blass_stoerfleck.jpg",
+      "expected_green_pixels": 3652,
+      "settings": {
+        "h_min": 38,
+        "h_max": 92,
+        "s_min": 137,
+        "s_max": 255,
+        "v_min": 35,
+        "v_max": 255,
+        "min_object_area_px": 280,
+        "max_object_area_px": 50000,
+        "green_dominance_margin": 12,
+        "green_index_min": 8,
+        "leaf_fill_px": 0,
+        "pale_leaf_expansion_px": 3,
+        "root_trim_px": 4,
+        "inner_dish_percent": 75,
+        "morphology_kernel_size": 3
+      }
+    },
+    {
+      "id": "klein_starker_kontrast_gruen_zu_medium",
+      "title": "Kleine Pflanzen, starker Kontrast zum dunklen Medium",
+      "image": "../examples/klein_starker_kontrast_gruen_zu_medium.jpg",
+      "expected_green_pixels": 17453,
+      "settings": {
+        "h_min": 25,
+        "h_max": 120,
+        "s_min": 85,
+        "s_max": 255,
+        "v_min": 25,
+        "v_max": 255,
+        "min_object_area_px": 240,
+        "max_object_area_px": 65000,
+        "green_dominance_margin": 38,
+        "green_index_min": 45,
+        "leaf_fill_px": 4,
+        "pale_leaf_expansion_px": 22,
+        "root_trim_px": 10,
+        "inner_dish_percent": 78,
+        "morphology_kernel_size": 3
+      }
+    }
+  ]
+}
