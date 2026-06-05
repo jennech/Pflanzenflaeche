@@ -20,6 +20,9 @@ Die Bedienung der App steht hier:
 Die Windows-Installation steht hier:
 [`PlantAreaAnalyzer/INSTALLATION_WINDOWS.md`](PlantAreaAnalyzer/INSTALLATION_WINDOWS.md)
 
+Unterstuetzung fuer die Entwicklung:
+[Buy Me a Coffee](https://buymeacoffee.com/jennech)
+
 ## Was ist wo?
 
 - `PlantAreaAnalyzer/` - die eigentliche App
