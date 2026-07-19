@@ -239,6 +239,35 @@ Wichtig:
 Wenn du Ergebnisse in `exports/` speicherst, sichere diesen Ordner vor groesseren
 Updates am besten mit.
 
+## Wenn du schon eine alte Version installiert hast
+
+Wenn die App schon laeuft und du nur auf die neue Version mit der erhoehten
+`Max Flaeche` updaten willst, mache genau das:
+
+1. App schliessen
+2. den Ordner `PlantAreaAnalyzer` oeffnen
+3. die virtuelle Umgebung aktivieren
+4. `git pull` ausfuehren
+5. die App wieder starten
+
+Die Befehle sind:
+
+```powershell
+cd Pflanzenflaeche/PlantAreaAnalyzer
+.venv\Scripts\Activate.ps1
+git pull
+python main.py
+```
+
+Wenn die virtuelle Umgebung schon existiert und sich an den Abhaengigkeiten
+nichts geaendert hat, reicht das meist schon aus.
+
+Wenn du auf Nummer sicher gehen willst, kannst du danach noch einmal ausfuehren:
+
+```powershell
+python -m pip install -r requirements.txt
+```
+
 ## Wenn du kein Git benutzen willst
 
 Dann kannst du die App auch als ZIP herunterladen:
