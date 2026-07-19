@@ -80,7 +80,7 @@ def suggest_analysis_settings(
     data_driven_settings = AnalysisSettings(
         thresholds=thresholds,
         min_object_area_px=min(min_area, 2500),
-        max_object_area_px=min(max_area, 120000),
+        max_object_area_px=min(max_area, 500000),
         green_dominance_margin=clamp_int(percentile(green_margin, 20) - 6, 4, 45),
         green_index_min=clamp_int(percentile(excess_green, 25) - 8, -20, 80),
         leaf_fill_px=3,

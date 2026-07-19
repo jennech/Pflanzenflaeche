@@ -51,7 +51,8 @@ SLIDER_HELP: dict[str, str] = {
     "max_object_area_px": (
         "Sehr grosse zusammenhaengende Maskenflaechen oberhalb dieser Pixelzahl werden "
         "entfernt. Hilft gegen Farbsaeume oder Medium-Artefakte, die zu gross fuer eine "
-        "einzelne Blatt-/Pflanzeninsel sind."
+        "einzelne Blatt-/Pflanzeninsel sind. Fuer sehr grosse Pflanzen darf der Wert "
+        "auch deutlich hoeher gesetzt werden."
     ),
     "green_dominance_margin": (
         "Wie stark der Gruenkanal gegenueber Rot und Blau dominieren muss. Hoeher = "
@@ -163,7 +164,7 @@ class SettingsPanel(QGroupBox):
         self._add_slider(slider_grid, "V min", "v_min", 0, 255, 35, 4)
         self._add_slider(slider_grid, "V max", "v_max", 0, 255, 255, 5)
         self._add_slider(slider_grid, "Min Flaeche", "min_object_area_px", 0, 2500, 120, 6)
-        self._add_slider(slider_grid, "Max Flaeche", "max_object_area_px", 0, 120000, 50000, 7)
+        self._add_slider(slider_grid, "Max Flaeche", "max_object_area_px", 0, 500000, 120000, 7)
         self._add_slider(slider_grid, "Gruen-Abstand", "green_dominance_margin", 0, 80, 12, 8)
         self._add_slider(slider_grid, "Gruen-Index", "green_index_min", -30, 80, 8, 9)
         self._add_slider(slider_grid, "Blatt-Fuell.", "leaf_fill_px", 0, 16, 2, 10)
